@@ -58,7 +58,7 @@ func (s *Server) loadConfiguration(configMsg types.ConfigMessage) {
 			s.serverEntryPoints[newServerEntryPointName].certs.DynamicCerts.Set(newServerEntryPoint.certs.DynamicCerts.Get())
 			s.serverEntryPoints[newServerEntryPointName].certs.ResetCache()
 		}
-		log.Infof("Server configuration reloaded on %s", s.serverEntryPoints[newServerEntryPointName].httpServer.Addr)
+		log.Debugf("Server configuration reloaded on %s", s.serverEntryPoints[newServerEntryPointName].httpServer.Addr)
 	}
 
 	s.currentConfigurations.Set(newConfigurations)

@@ -406,7 +406,7 @@ func (p *Provider) loadIngresses(k8sClient Client) (*types.Configuration, error)
 							}
 
 							if len(endpoints.Subsets) == 0 {
-								log.Warnf("Endpoints not available for %s/%s", service.Namespace, service.Name)
+								log.Debugf("Endpoints not available for %s/%s", service.Namespace, service.Name)
 								break
 							}
 
