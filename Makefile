@@ -18,6 +18,9 @@ INTEGRATION_OPTS  := $(if $(MAKE_DOCKER_HOST),-e "DOCKER_HOST=$(MAKE_DOCKER_HOST
 DOCKER_BUILD_ARGS := $(if $(DOCKER_VERSION), "--build-arg=DOCKER_VERSION=$(DOCKER_VERSION)",)
 DOCKER_BUILD_ARGS += --build-arg="TRAEFIK_IMAGE_VERSION=$(TRAEFIK_DEV_VERSION)"
 
+WEBUI_LAST_BUILD := webui/.lastbuild
+WEBUI_FILES := $(shell find webui -type f ! -path $(WEBUI_LAST_BUILD) ! -path 'webui/dist/*' ! -path 'webui/node_modules/*')
+
 DOCKER_ENV_VARS := -e TESTFLAGS
 DOCKER_ENV_VARS += -e VERBOSE
 DOCKER_ENV_VARS += -e VERSION
@@ -66,11 +69,14 @@ build-generate:
 	@echo "== build-generate =================================================="
 	./script/make.sh generate
 
-build-frontend:
+$(WEBUI_LAST_BUILD): $(WEBUI_FILES)
 	@echo "== build-frontend =================================================="
 	npm run --prefix=webui build:nc
 	cp -R webui/dist/pwa/* static/
 	echo 'For more informations show `webui/readme.md`' > $$PWD/static/DONT-EDIT-FILES-IN-THIS-DIRECTORY.md
+	touch $(WEBUI_LAST_BUILD)
+
+build-frontend: $(WEBUI_LAST_BUILD)
 
 build-backend: build-frontend build-generate
 	@echo "== build-backend ==================================================="
