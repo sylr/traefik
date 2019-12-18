@@ -18,22 +18,23 @@ INTEGRATION_OPTS  := $(if $(MAKE_DOCKER_HOST),-e "DOCKER_HOST=$(MAKE_DOCKER_HOST
 DOCKER_BUILD_ARGS := $(if $(DOCKER_VERSION), "--build-arg=DOCKER_VERSION=$(DOCKER_VERSION)",)
 DOCKER_BUILD_ARGS += --build-arg="TRAEFIK_IMAGE_VERSION=$(TRAEFIK_DEV_VERSION)"
 
-DOCKER_ENV_VARS := -e CROSSBUILD_ARCH -e CROSSBUILD_OS
-DOCKER_ENV_VARS += -e TESTFLAGS
+DOCKER_ENV_VARS := -e TESTFLAGS
 DOCKER_ENV_VARS += -e VERBOSE
 DOCKER_ENV_VARS += -e VERSION
 DOCKER_ENV_VARS += -e CODENAME
 DOCKER_ENV_VARS += -e TESTDIRS
 DOCKER_ENV_VARS += -e CI
-DOCKER_ENV_VARS += -e CONTAINER=DOCKER		# Indicator for integration tests that we are running inside a container.
+DOCKER_ENV_VARS += -e CONTAINER=DOCKER # Indicator for integration tests that we are running inside a container.
 
 TRAEFIK_DIST_MOUNT        := -v "$(CURDIR)/$(BIN_DIR):/go/src/github.com/containous/traefik/$(BIN_DIR)"
-DOCKER_RUN_OPTS           := $(TRAEFIK_ENVS) "$(TRAEFIK_DEV_IMAGE)"
-DOCKER_RUN_TRAEFIK        := docker run $(INTEGRATION_OPTS) -it $(DOCKER_RUN_OPTS)
-DOCKER_RUN_TRAEFIK_NOTTY  := docker run $(INTEGRATION_OPTS) -i $(DOCKER_RUN_OPTS)
 DOCKER_NO_CACHE           := $(if $(DOCKER_NO_CACHE),--no-cache)
 
-CROSSBUILD_DEFAULT ?= true
+CROSSBUILD_LINUX_PLATFORMS   ?= linux/386 linux/amd64 linux/arm64
+CROSSBUILD_WINDOWS_PLATFORMS ?= windows/386 windows/amd64
+CROSSBUILD_DARWIN_PLATFORMS  ?= darwin/amd64
+CROSSBUILD_LINUX_TARGETS     := $(patsubst linux/%,dist/traefik_linux-%,$(CROSSBUILD_LINUX_PLATFORMS))
+CROSSBUILD_WINDOWS_TARGETS   := $(patsubst windows/%,dist/traefik_windows-%.exe,$(CROSSBUILD_WINDOWS_PLATFORMS))
+CROSSBUILD_DARWIN_TARGETS    := $(patsubst darwin/%,dist/traefik_windows-%.exe,$(CROSSBUILD_DARWIN_PLATFORMS))
 
 default: build
 
@@ -57,12 +58,12 @@ docker-build: docker-build-backend
 
 docker-crossbuild:
 	@echo "== docker-crossbuild ==============================================="
-	docker run -it $(TRAEFIK_DIST_MOUNT) $(DOCKER_ENV_VARS) -e CROSSBUILD_DEFAULT="" "traefik-backend:$(TRAEFIK_DEV_VERSION)" make crossbuild
+	docker run -it $(TRAEFIK_DIST_MOUNT) $(DOCKER_ENV_VARS) "traefik-backend:$(TRAEFIK_DEV_VERSION)" make crossbuild
 
 # -- build ---------------------------------------------------------------------
 
 build-generate:
-	@echo "== generate ========================================================="
+	@echo "== build-generate =================================================="
 	./script/make.sh generate
 
 build-frontend:
@@ -72,24 +73,17 @@ build-frontend:
 	echo 'For more informations show `webui/readme.md`' > $$PWD/static/DONT-EDIT-FILES-IN-THIS-DIRECTORY.md
 
 build-backend: build-frontend build-generate
-	@echo "== binary =========================================================="
+	@echo "== build-backend ==================================================="
 	./script/make.sh binary
 
 build: build-backend
 
 # -- crossbuild ---------------------------------------------------------------------
 
-crossbuild: build-generate
-	@echo "== crossbuild ======================================================"
-ifdef (CROSSBUILD_DEFAULT)
-	OS= ARCH= ./script/make.sh binary
-endif
-	for os in linux windows darwin; do \
-		for arch in amd64 386; do \
-			OS=$$os ARCH=$$arch ./script/make.sh binary; \
-		done; \
-	done;
-	OS=linux ARCH=arm64 ./script/make.sh binary
+dist/traefik_linux-% dist/traefik_windows-%.exe dist/traefik_darwins-%: | build-generate
+	OS=$(shell echo $@ | sed -e 's#^dist/traefik_\(.*\)-\(.*\)$$#\1#') ARCH=$* ./script/make.sh binary
+
+crossbuild: $(CROSSBUILD_LINUX_TARGETS) $(CROSSBUILD_WINDOWS_TARGETS) $(CROSSBUILD_DARWIN_TARGETS)
 
 # -- tests ---------------------------------------------------------------------
 
@@ -106,22 +100,17 @@ test-integration: docker-build-test
 	CI=1 TEST_CONTAINER=1 docker run -it $(DOCKER_ENV_VARS) $(INTEGRATION_OPTS) traefik-test:$(TRAEFIK_DEV_VERSION) ./script/make.sh test-integration
 	CI=1 TEST_HOST=1 ./script/make.sh test-integration
 
-# Pull all images for integration tests
-pull-images:
-	@echo "== pull-images ====================================================="
-	grep --no-filename -E '^\s+image:' ./integration/resources/compose/*.yml | awk '{print $$2}' | sort | uniq | xargs -P 2 -n 1 docker pull
-
 # -- validation ----------------------------------------------------------------
 
-validate-files:
+validate-files: build-generate
 	@echo "== validate-files =================================================="
-	./script/make.sh generate validate-lint validate-misspell
+	./script/make.sh validate-lint validate-misspell
 	bash $(CURDIR)/script/validate-shell-script.sh
 
 # Validate code, docs, and vendor
-validate:
+validate: build-generate
 	@echo "== validate ========================================================"
-	./script/make.sh generate validate-lint validate-misspell validate-vendor
+	./script/make.sh validate-lint validate-misspell validate-vendor
 	bash $(CURDIR)/script/validate-shell-script.sh
 
 # -- docs ----------------------------------------------------------------------
@@ -141,24 +130,29 @@ shell:
 	@echo "== shell ==========================================================="
 	docker run -it $(TRAEFIK_DIST_MOUNT) $(DOCKER_ENV_VARS) "traefik-backend:$(TRAEFIK_DEV_VERSION)" /bin/bash
 
-## Generate CRD clientset
+# Pull all images for integration tests
+pull-images:
+	@echo "== pull-images ====================================================="
+	grep --no-filename -E '^\s+image:' ./integration/resources/compose/*.yml | awk '{print $$2}' | sort | uniq | xargs -P 6 -n 1 docker pull
+
+# Generate CRD clientset
 generate-crd:
 	./script/update-generated-crd-code.sh
 
-## Create packages for the release
-release-packages: build
+# Create packages for the release
+release-packages: docker-build-backend
 	rm -rf dist
-	$(DOCKER_RUN_TRAEFIK_NOTTY) goreleaser release --skip-publish --timeout="60m"
-	$(DOCKER_RUN_TRAEFIK_NOTTY) tar cfz dist/traefik-${VERSION}.src.tar.gz \
+	docker run -i "traefik-backend:$(TRAEFIK_DEV_VERSION)" goreleaser release --skip-publish --timeout="60m"
+	docker run -i "traefik-backend:$(TRAEFIK_DEV_VERSION)" tar cfz dist/traefik-${VERSION}.src.tar.gz \
 		--exclude-vcs \
 		--exclude .idea \
 		--exclude .travis \
 		--exclude .semaphoreci \
 		--exclude .github \
 		--exclude dist .
-	$(DOCKER_RUN_TRAEFIK_NOTTY) chown -R $(shell id -u):$(shell id -g) dist/
+	docker run -i "traefik-backend:$(TRAEFIK_DEV_VERSION)" chown -R $(shell id -u):$(shell id -g) dist/
 
-## Format the Code
+# Format the Code
 fmt:
 	gofmt -s -l -w $(SRCS)
 
