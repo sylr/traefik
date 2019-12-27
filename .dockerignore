@@ -1,4 +1,5 @@
+autogen/
 dist/
-!dist/traefik
 site/
-webui/node_modules
+static/
+webui/node_modules/
