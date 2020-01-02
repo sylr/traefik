@@ -215,7 +215,9 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request, next http
 		size:    crw.Size(),
 	}
 	if crr != nil {
+		crr.mu.Lock()
 		logDataTable.Request.count = crr.count
+		crr.mu.Unlock()
 	}
 
 	if h.config.BufferingSize > 0 {
