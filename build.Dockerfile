@@ -1,27 +1,6 @@
-# See https://github.com/golang/go/issues/14481
-FROM golang:1.13-alpine AS race
+FROM golang:1.13
 
-WORKDIR /tmp/race
-
-RUN apk --update -q --progress --no-cache add git g++
-RUN git clone --single-branch https://llvm.org/git/compiler-rt.git . &> /dev/null
-RUN git reset --hard fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 && \
-    wget -q https://github.com/golang/go/files/3615484/0001-hack-to-make-Go-s-race-flag-work-on-Alpine.patch.gz -O patch.gz && \
-    gunzip patch.gz && \
-    patch -p1 -i patch
-RUN cd lib/tsan/go && \
-    ./buildgo.sh &> /dev/null
-
-
-FROM golang:1.13-alpine
-
-# Patch for go test -race on Alpine
-COPY --from=race /tmp/race/lib/tsan/go/race_linux_amd64.syso /usr/local/go/src/runtime/race/race_linux_amd64.syso
-
-RUN apk --update upgrade \
-    && apk --no-cache --no-progress add git mercurial bash gcc musl-dev curl tar ca-certificates tzdata \
-    && update-ca-certificates \
-    && rm -rf /var/cache/apk/*
+RUN apt-get update && apt-get install -y git mercurial build-essential
 
 # Which docker version to test on
 ARG DOCKER_VERSION=18.09.7
