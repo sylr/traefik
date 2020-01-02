@@ -13,14 +13,10 @@ type captureRequestReader struct {
 }
 
 func (r *captureRequestReader) Read(p []byte) (int, error) {
-	if r.closed {
-		return 0, nil
-	}
-
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	if r.req != nil && r.req.Body == nil {
+	if r.closed {
 		return 0, nil
 	}
 
@@ -37,11 +33,10 @@ func (r *captureRequestReader) Close() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	r.closed = true
-
-	if r.req != nil && r.req.Body != nil {
-		return r.req.Body.Close()
+	if r.closed {
+		return nil
 	}
 
-	return nil
+	r.closed = true
+	return r.req.Body.Close()
 }
