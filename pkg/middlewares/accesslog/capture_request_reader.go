@@ -8,22 +8,22 @@ import (
 type captureRequestReader struct {
 	req   *http.Request
 	count int64
-	mux   sync.Mutex
+	mu    sync.Mutex
 	done  bool
 }
 
 func (r *captureRequestReader) waitForClosure() {
 	select {
 	case <-r.req.Context().Done():
-		r.mux.Lock()
+		r.mu.Lock()
 		r.done = true
-		defer r.mux.Unlock()
+		r.mu.Unlock()
 	}
 }
 
 func (r *captureRequestReader) Read(p []byte) (int, error) {
-	r.mux.Lock()
-	defer r.mux.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	if r.done {
 		return 0, http.ErrBodyReadAfterClose
@@ -35,8 +35,8 @@ func (r *captureRequestReader) Read(p []byte) (int, error) {
 }
 
 func (r *captureRequestReader) Close() error {
-	r.mux.Lock()
-	defer r.mux.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	if r.done {
 		return http.ErrBodyReadAfterClose
