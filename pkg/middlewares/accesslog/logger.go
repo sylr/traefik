@@ -172,6 +172,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request, next http
 	var crr *captureRequestReader
 	if req.Body != nil {
 		crr = &captureRequestReader{req: req}
+		go crr.waitForClosure()
 		reqWithDataTable.Body = crr
 	}
 
