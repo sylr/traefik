@@ -8,9 +8,7 @@ GIT_DESCRIBE    := $(shell git describe --tags --dirty)
 
 VERSION     ?= $(GIT_DESCRIBE)
 BIN_DIR     := dist
-
-REPONAME            := $(shell echo $(REPO) | tr '[:upper:]' '[:lower:]')
-
+REPONAME    := $(shell echo $(REPO) | tr '[:upper:]' '[:lower:]')
 
 BACKEND_BUILD_MARKER    := $(BIN_DIR)/traefik
 BACKEND_SRC_FILES       := $(shell git ls-files '*.go' | grep -v '^vendor/')
@@ -37,11 +35,11 @@ CROSSBUILD_TARGETS                  += $(patsubst windows/%,$(CROSSBUILD_WINDOWS
 CROSSBUILD_TARGETS                  += $(patsubst darwin/%,$(CROSSBUILD_DARWIN_TARGET_PATTERN),$(CROSSBUILD_DARWIN_PLATFORMS))
 
 ifeq ($(GIT_BRANCH),master)
-DOCKER_IMAGE_VERSION	:= $(subst +,_,$(GIT_DESCRIBE))
+DOCKER_IMAGE_VERSION	:= $(GIT_DESCRIBE)
 else
 DOCKER_IMAGE_VERSION 	:= $(subst /,-,$(GIT_BRANCH))
-DOCKER_IMAGE_VERSION 	:= $(subst +,-,$(DOCKER_IMAGE_VERSION))
 endif
+DOCKER_IMAGE_VERSION 	:= $(subst +,_,$(DOCKER_IMAGE_VERSION))
 DOCKER_BIN_VERSION		?= 18.09.7
 DOCKER_REPO         	:= $(if $(REPONAME),$(REPONAME),"containous/traefik/")
 DOCKER_BUILD_ARGS   	:= --build-arg="DOCKER_VERSION=$(DOCKER_BIN_VERSION)"
@@ -154,7 +152,7 @@ test-unit: build-generate
 
 test-integration: docker-build-test-image build
 	@echo "== test-integration ================================================"
-	#@CI=1 TEST_CONTAINER=1 docker run -it $(DOCKER_ENV_VARS) $(INTEGRATION_OPTS) "traefik-test:$(DOCKER_IMAGE_VERSION)" ./script/make.sh test-integration
+	@CI=1 TEST_CONTAINER=1 docker run -it $(DOCKER_ENV_VARS) $(INTEGRATION_OPTS) "traefik-test:$(DOCKER_IMAGE_VERSION)" ./script/make.sh test-integration
 	@CI=1 TEST_HOST=1 ./script/make.sh test-integration
 
 test: test-unit test-integration
