@@ -164,15 +164,14 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request, next http
 		Core: core,
 		Request: request{
 			headers: req.Header,
+			count:   req.ContentLength,
 		},
 	}
 
 	reqWithDataTable := req.WithContext(context.WithValue(req.Context(), DataTableKey, logDataTable))
 
-	var crr *captureRequestReader
 	if req.Body != nil {
-		crr = &captureRequestReader{req: req}
-		reqWithDataTable.Body = crr
+		reqWithDataTable.Body = req.Body
 	}
 
 	core[RequestCount] = nextRequestCount()
@@ -212,9 +211,6 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request, next http
 		headers: crw.Header().Clone(),
 		status:  crw.Status(),
 		size:    crw.Size(),
-	}
-	if crr != nil {
-		logDataTable.Request.count = crr.count
 	}
 
 	if h.config.BufferingSize > 0 {
