@@ -1,7 +1,6 @@
 package accesslog
 
 import (
-	"io"
 	"net/http"
 	"sync"
 )
@@ -15,7 +14,7 @@ type captureRequestReader struct {
 
 func (r *captureRequestReader) Read(p []byte) (int, error) {
 	if r.closed {
-		return 0, io.EOF
+		return 0, nil
 	}
 
 	r.mux.Lock()
@@ -44,5 +43,5 @@ func (r *captureRequestReader) Close() error {
 		return r.req.Body.Close()
 	}
 
-	return io.EOF
+	return nil
 }
