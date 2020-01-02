@@ -16,13 +16,9 @@ func (r *captureRequestReader) Read(p []byte) (int, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	if r.closed {
-		return 0, nil
-	}
-
 	n, err := r.req.Body.Read(p)
 	if err != nil {
-		return 0, err
+		return 0, nil
 	}
 
 	r.count += int64(n)
@@ -32,10 +28,6 @@ func (r *captureRequestReader) Read(p []byte) (int, error) {
 func (r *captureRequestReader) Close() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
-
-	if r.closed {
-		return nil
-	}
 
 	r.closed = true
 	return r.req.Body.Close()
