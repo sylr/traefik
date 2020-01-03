@@ -31,4 +31,4 @@ go build ${FLAGS[*]} -ldflags "-s -w \
     -X github.com/containous/traefik/v2/pkg/version.Version=$VERSION \
     -X github.com/containous/traefik/v2/pkg/version.Codename=$CODENAME \
     -X github.com/containous/traefik/v2/pkg/version.BuildDate=$DATE" \
-    -a -race -o dist/traefik ./cmd/traefik
+    -a -o dist/traefik ./cmd/traefik
