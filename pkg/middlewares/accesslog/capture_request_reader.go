@@ -1,29 +1,18 @@
 package accesslog
 
 import (
+	"errors"
 	"net/http"
 	"sync"
+
+	"github.com/sirupsen/logrus"
 )
 
 type captureRequestReader struct {
-	req   *http.Request
-	count int64
-	mu    sync.Mutex
-	// done is a boolean which aim to protect against panics which can occur when
-	// we try to read the request body after a connection has been closed. It is
-	// set true when req.Context().Done() channel returns a value.
-	done bool
-}
-
-// waitForClosure is a function which should be ran as a goroutine.
-// It reads r.req.Context().Done() and sets r.done to true when a value is returned.
-func (r *captureRequestReader) waitForClosure() {
-	select {
-	case <-r.req.Context().Done():
-		r.mu.Lock()
-		r.done = true
-		r.mu.Unlock()
-	}
+	req    *http.Request
+	count  int64
+	mu     sync.Mutex
+	logger *logrus.Logger
 }
 
 func (r *captureRequestReader) GetCount() int64 {
@@ -33,26 +22,51 @@ func (r *captureRequestReader) GetCount() int64 {
 	return r.count
 }
 
-func (r *captureRequestReader) Read(p []byte) (int, error) {
+func (r *captureRequestReader) Read(p []byte) (n int, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.done {
-		return 0, http.ErrBodyReadAfterClose
-	}
+	// Access to req.Body is unsafe so we add recovery management
+	defer func() {
+		if rec := recover(); rec != nil {
+			r.logger.Errorf("Error while reading req.Body: %#v", rec)
+			n = 0
+			switch x := rec.(type) {
+			case error:
+				err = x
+			case string:
+				err = errors.New(x)
+			default:
+				// Fallback err (per specs, error strings should be lowercase w/o punctuation
+				err = errors.New("Error while reading req.Body: unknown panic")
+			}
+		}
+	}()
 
-	n, err := r.req.Body.Read(p)
+	n, err = r.req.Body.Read(p)
 	r.count += int64(n)
 	return n, err
 }
 
-func (r *captureRequestReader) Close() error {
+func (r *captureRequestReader) Close() (err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.done {
-		return http.ErrBodyReadAfterClose
-	}
+	// Access to req.Body is unsafe so we add recovery management
+	defer func() {
+		if rec := recover(); rec != nil {
+			r.logger.Errorf("Error while closing req.Body: %#v", rec)
+			switch x := rec.(type) {
+			case error:
+				err = x
+			case string:
+				err = errors.New(x)
+			default:
+				// Fallback err (per specs, error strings should be lowercase w/o punctuation
+				err = errors.New("Error while closing req.Body: unknown panic")
+			}
+		}
+	}()
 
 	return r.req.Body.Close()
 }
