@@ -522,6 +522,10 @@ func loadService(client Client, namespace string, backend networkingv1beta1.Ingr
 		}
 	}
 
+	if len(svc.LoadBalancer.Servers) == 0 {
+		return nil, errors.New("no healthy endpoints found")
+	}
+
 	return svc, nil
 }
 
