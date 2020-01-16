@@ -17,7 +17,7 @@ WEBUI_SRC_FILES         := $(shell git ls-files webui/)
 GENERATE_BUILD_MARKER   := autogen/genstatic/gen.go
 GENERATE_SRC_FILES      := $(shell test -e static && find static -type f)
 
-CROSSBUILD_PLATFORMS				?= linux/386 linux/amd64 linux/arm64 windows/386 windows/amd64 darwin/amd64
+CROSSBUILD_PLATFORMS                ?= linux/386 linux/amd64 linux/arm64 windows/386 windows/amd64 darwin/amd64
 CROSSBUILD_LINUX_PLATFORMS          := $(filter linux/%,$(CROSSBUILD_PLATFORMS))
 CROSSBUILD_FREEBSD_PLATFORMS        := $(filter freebsd/%,$(CROSSBUILD_PLATFORMS))
 CROSSBUILD_OPENBSD_PLATFORMS        := $(filter openbsd/%,$(CROSSBUILD_PLATFORMS))
@@ -35,21 +35,21 @@ CROSSBUILD_TARGETS                  += $(patsubst windows/%,$(CROSSBUILD_WINDOWS
 CROSSBUILD_TARGETS                  += $(patsubst darwin/%,$(CROSSBUILD_DARWIN_TARGET_PATTERN),$(CROSSBUILD_DARWIN_PLATFORMS))
 
 ifeq ($(GIT_BRANCH),master)
-DOCKER_IMAGE_VERSION	:= $(GIT_DESCRIBE)
+DOCKER_IMAGE_VERSION    := $(GIT_DESCRIBE)
 else
-DOCKER_IMAGE_VERSION 	:= $(subst /,-,$(GIT_BRANCH))
+DOCKER_IMAGE_VERSION    := $(subst /,-,$(GIT_BRANCH))
 endif
-DOCKER_IMAGE_VERSION 	:= $(subst +,_,$(DOCKER_IMAGE_VERSION))
-DOCKER_BIN_VERSION		?= 18.09.7
-DOCKER_REPO         	:= $(if $(REPONAME),$(REPONAME),"containous/traefik/")
-DOCKER_BUILD_ARGS   	:= --build-arg="DOCKER_VERSION=$(DOCKER_BIN_VERSION)"
-DOCKER_BUILD_ARGS   	+= --build-arg="TRAEFIK_IMAGE_VERSION=$(DOCKER_IMAGE_VERSION)"
-DOCKER_ENV_VARS     	:= -e TESTFLAGS -e VERBOSE -e VERSION=$(VERSION) -e CODENAME
-DOCKER_ENV_VARS     	+= -e CI -e CONTAINER=DOCKER # Indicator for integration tests that we are running inside a container.
-DOCKER_ENV_VARS     	+= -e "CROSSBUILD_PLATFORMS=$(CROSSBUILD_PLATFORMS)"
-DOCKER_DIST_MOUNT   	:= -v "$(CURDIR)/$(BIN_DIR):/go/src/github.com/containous/traefik/$(BIN_DIR)"
-DOCKER_GO_PKG_MOUNT		:= -v "$(shell go env GOPATH)/pkg:/go/pkg"
-DOCKER_NO_CACHE     	:= $(if $(DOCKER_NO_CACHE),--no-cache)
+DOCKER_IMAGE_VERSION    := $(subst +,_,$(DOCKER_IMAGE_VERSION))
+DOCKER_BIN_VERSION      ?= 18.09.7
+DOCKER_REPO             := $(if $(REPONAME),$(REPONAME),"containous/traefik/")
+DOCKER_BUILD_ARGS       := --build-arg="DOCKER_VERSION=$(DOCKER_BIN_VERSION)"
+DOCKER_BUILD_ARGS       += --build-arg="TRAEFIK_IMAGE_VERSION=$(DOCKER_IMAGE_VERSION)"
+DOCKER_ENV_VARS         := -e TESTFLAGS -e VERBOSE -e VERSION=$(VERSION) -e CODENAME
+DOCKER_ENV_VARS         += -e CI -e CONTAINER=DOCKER # Indicator for integration tests that we are running inside a container.
+DOCKER_ENV_VARS         += -e "CROSSBUILD_PLATFORMS=$(CROSSBUILD_PLATFORMS)"
+DOCKER_DIST_MOUNT       := -v "$(CURDIR)/$(BIN_DIR):/go/src/github.com/containous/traefik/$(BIN_DIR)"
+DOCKER_GO_PKG_MOUNT     := -v "$(shell go env GOPATH)/pkg:/go/pkg"
+DOCKER_NO_CACHE         := $(if $(DOCKER_NO_CACHE),--no-cache)
 
 INTEGRATION_OPTS := $(if $(MAKE_DOCKER_HOST),-e "DOCKER_HOST=$(MAKE_DOCKER_HOST)", -e "TEST_CONTAINER=1" -v "/var/run/docker.sock:/var/run/docker.sock")
 
