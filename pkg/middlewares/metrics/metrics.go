@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,6 +33,7 @@ type metricsMiddleware struct {
 	openConns            int64
 	next                 http.Handler
 	reqsCounter          gokitmetrics.Counter
+	reqsTLSCounter       gokitmetrics.Counter
 	reqDurationHistogram gokitmetrics.Histogram
 	openConnsGauge       gokitmetrics.Gauge
 	baseLabels           []string
@@ -44,6 +46,7 @@ func NewEntryPointMiddleware(ctx context.Context, next http.Handler, registry me
 	return &metricsMiddleware{
 		next:                 next,
 		reqsCounter:          registry.EntryPointReqsCounter(),
+		reqsTLSCounter:       registry.EntryPointReqsTLSCounter(),
 		reqDurationHistogram: registry.EntryPointReqDurationHistogram(),
 		openConnsGauge:       registry.EntryPointOpenConnsGauge(),
 		baseLabels:           []string{"entrypoint", entryPointName},
@@ -57,6 +60,7 @@ func NewServiceMiddleware(ctx context.Context, next http.Handler, registry metri
 	return &metricsMiddleware{
 		next:                 next,
 		reqsCounter:          registry.ServiceReqsCounter(),
+		reqsTLSCounter:       registry.ServiceReqsTLSCounter(),
 		reqDurationHistogram: registry.ServiceReqDurationHistogram(),
 		openConnsGauge:       registry.ServiceOpenConnsGauge(),
 		baseLabels:           []string{"service", serviceName},
@@ -87,6 +91,17 @@ func (m *metricsMiddleware) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		openConns := atomic.AddInt64(&m.openConns, -1)
 		m.openConnsGauge.With(labelValues...).Set(float64(openConns))
 	}(labels)
+
+	// TLS metrics
+	if req.TLS != nil {
+		tlsVersion := getRequestTLSVersion(req)
+		tlsCipher := getRequestTLSCipher(req)
+
+		tlsLabels := []string{"tls_version", tlsVersion, "tls_cipher", tlsCipher}
+		tlsLabels = append(tlsLabels, m.baseLabels...)
+
+		m.reqsTLSCounter.With(tlsLabels...).Add(1)
+	}
 
 	start := time.Now()
 	recorder := newResponseRecorder(rw)
@@ -134,6 +149,88 @@ func getMethod(r *http.Request) string {
 		return "NON_UTF8_HTTP_METHOD"
 	}
 	return r.Method
+}
+
+func getRequestTLSVersion(req *http.Request) string {
+	var tlsVersion string
+
+	switch req.TLS.Version {
+	case tls.VersionTLS10:
+		tlsVersion = "tls-1.0"
+	case tls.VersionTLS11:
+		tlsVersion = "tls-1.1"
+	case tls.VersionTLS12:
+		tlsVersion = "tls-1.2"
+	case tls.VersionTLS13:
+		tlsVersion = "tls-1.3"
+	case tls.VersionSSL30: //nolint
+		tlsVersion = "ssl-3.0"
+	default:
+		tlsVersion = "unknown"
+	}
+
+	return tlsVersion
+}
+
+func getRequestTLSCipher(req *http.Request) string {
+	var tlsCipher string
+
+	switch req.TLS.CipherSuite {
+	case tls.TLS_RSA_WITH_RC4_128_SHA:
+		tlsCipher = "TLS_RSA_WITH_RC4_128_SHA"
+	case tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA:
+		tlsCipher = "TLS_RSA_WITH_3DES_EDE_CBC_SHA"
+	case tls.TLS_RSA_WITH_AES_128_CBC_SHA:
+		tlsCipher = "TLS_RSA_WITH_AES_128_CBC_SHA"
+	case tls.TLS_RSA_WITH_AES_256_CBC_SHA:
+		tlsCipher = "TLS_RSA_WITH_AES_256_CBC_SHA"
+	case tls.TLS_RSA_WITH_AES_128_CBC_SHA256:
+		tlsCipher = "TLS_RSA_WITH_AES_128_CBC_SHA256"
+	case tls.TLS_RSA_WITH_AES_128_GCM_SHA256:
+		tlsCipher = "TLS_RSA_WITH_AES_128_GCM_SHA256"
+	case tls.TLS_RSA_WITH_AES_256_GCM_SHA384:
+		tlsCipher = "TLS_RSA_WITH_AES_256_GCM_SHA384"
+	case tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:
+		tlsCipher = "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA"
+	case tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
+		tlsCipher = "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA"
+	case tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
+		tlsCipher = "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA"
+	case tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA:
+		tlsCipher = "TLS_ECDHE_RSA_WITH_RC4_128_SHA"
+	case tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:
+		tlsCipher = "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA"
+	case tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
+		tlsCipher = "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+	case tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
+		tlsCipher = "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"
+	case tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
+		tlsCipher = "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256"
+	case tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
+		tlsCipher = "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
+	case tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
+		tlsCipher = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+	case tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
+		tlsCipher = "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+	case tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
+		tlsCipher = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+	case tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
+		tlsCipher = "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+	case tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305:
+		tlsCipher = "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+	case tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305:
+		tlsCipher = "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305"
+	case tls.TLS_AES_128_GCM_SHA256:
+		tlsCipher = "TLS_AES_128_GCM_SHA256"
+	case tls.TLS_AES_256_GCM_SHA384:
+		tlsCipher = "TLS_AES_256_GCM_SHA384"
+	case tls.TLS_CHACHA20_POLY1305_SHA256:
+		tlsCipher = "TLS_CHACHA20_POLY1305_SHA256"
+	default:
+		tlsCipher = "unknown"
+	}
+
+	return tlsCipher
 }
 
 type retryMetrics interface {
