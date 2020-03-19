@@ -346,7 +346,7 @@ TLS key
 Use the ip address from the bound port, rather than from the inner network. (Default: ```false```)
 
 `TRAEFIK_PROVIDERS_DOCKER_WATCH`:  
-Watch provider. (Default: ```true```)
+Watch Docker Swarm events. (Default: ```true```)
 
 `TRAEFIK_PROVIDERS_FILE_DEBUGLOGGENERATEDTEMPLATE`:  
 Enable debug logging of generated configuration template. (Default: ```false```)
@@ -580,7 +580,7 @@ Specifies the header name prefix that will be used to store baggage items in a m
 Key:Value tag to be set on all the spans.
 
 `TRAEFIK_TRACING_HAYSTACK_LOCALAGENTHOST`:  
-Set haystack-agent's host that the reporter will used. (Default: ```LocalAgentHost```)
+Set haystack-agent's host that the reporter will used. (Default: ```127.0.0.1```)
 
 `TRAEFIK_TRACING_HAYSTACK_LOCALAGENTPORT`:  
 Set haystack-agent's port that the reporter will used. (Default: ```35000```)
