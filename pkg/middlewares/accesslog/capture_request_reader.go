@@ -1,6 +1,9 @@
 package accesslog
 
-import "io"
+import (
+	"errors"
+	"io"
+)
 
 type captureRequestReader struct {
 	// source ReadCloser from where the request body is read.
@@ -10,11 +13,44 @@ type captureRequestReader struct {
 }
 
 func (r *captureRequestReader) Read(p []byte) (int, error) {
+	var err error
+
+	defer func() {
+		if r := recover(); r != nil {
+			switch x := r.(type) {
+			case string:
+				err = errors.New(x)
+			case error:
+				err = x
+			default:
+				err = errors.New("Unknown panic")
+			}
+		}
+	}()
+
 	n, err := r.source.Read(p)
 	r.count += int64(n)
+
 	return n, err
 }
 
 func (r *captureRequestReader) Close() error {
-	return r.source.Close()
+	var err error
+
+	defer func() {
+		if r := recover(); r != nil {
+			switch x := r.(type) {
+			case string:
+				err = errors.New(x)
+			case error:
+				err = x
+			default:
+				err = errors.New("Unknown panic")
+			}
+		}
+	}()
+
+	err = r.source.Close()
+
+	return err
 }
