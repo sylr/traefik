@@ -6,12 +6,15 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/containous/traefik/v2/pkg/log"
 	"github.com/containous/traefik/v2/pkg/tls/generate"
 	"github.com/containous/traefik/v2/pkg/types"
 	"github.com/go-acme/lego/v4/challenge/tlsalpn01"
+	"github.com/go-kit/kit/metrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -26,6 +29,8 @@ type Manager struct {
 	certs         []*CertAndStores
 	TLSAlpnGetter func(string) (*tls.Certificate, error)
 	lock          sync.RWMutex
+
+	tlsCertsNotAfterTimestampGauge metrics.Gauge
 }
 
 // NewManager creates a new Manager.
@@ -80,6 +85,12 @@ func (m *Manager) UpdateConfigs(ctx context.Context, stores map[string]Store, co
 	}
 }
 
+// SetTLSCertsNotAfterTimestampGauge is used to provide a Gauge that will holds
+// certs NotAfter timestamps.
+func (m *Manager) SetTLSCertsNotAfterTimestampGauge(gauge metrics.Gauge) {
+	m.tlsCertsNotAfterTimestampGauge = gauge
+}
+
 // Get gets the TLS configuration to use for a given store / configuration.
 func (m *Manager) Get(storeName, configName string) (*tls.Config, error) {
 	m.lock.RLock()
@@ -118,7 +129,29 @@ func (m *Manager) Get(storeName, configName string) (*tls.Config, error) {
 		}
 
 		bestCertificate := store.GetBestCertificate(clientHello)
+
 		if bestCertificate != nil {
+			if m.tlsCertsNotAfterTimestampGauge != nil {
+				for index := range bestCertificate.Certificate {
+					x509Cert, err := x509.ParseCertificate(bestCertificate.Certificate[index])
+
+					if err == nil {
+						DNSNames := make([]string, 0, len(x509Cert.DNSNames))
+						DNSNames = append(DNSNames, x509Cert.DNSNames...)
+						sort.Strings(DNSNames)
+						sans := strings.Join(DNSNames, ",")
+
+						labels := []string{
+							"cn", x509Cert.Subject.CommonName,
+							"serial", x509Cert.SerialNumber.String(),
+							"sans", sans,
+						}
+
+						m.tlsCertsNotAfterTimestampGauge.With(labels...).Set(float64(x509Cert.NotAfter.Unix()))
+					}
+				}
+			}
+
 			return bestCertificate, nil
 		}
 
