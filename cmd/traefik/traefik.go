@@ -211,6 +211,7 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 	}
 
 	metricsRegistry := metrics.NewMultiRegistry(metricRegistries)
+	tlsManager.SetTLSCertsNotAfterTimestampGauge(metricsRegistry.TLSCertsNotAfterTimestampGauge())
 	accessLog := setupAccessLog(staticConfiguration.AccessLog)
 	chainBuilder := middleware.NewChainBuilder(*staticConfiguration, metricsRegistry, accessLog)
 	managerFactory := service.NewManagerFactory(*staticConfiguration, routinesPool, metricsRegistry)
