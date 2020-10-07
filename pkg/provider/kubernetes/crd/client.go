@@ -153,10 +153,30 @@ func (c *clientWrapper) WatchAll(namespaces []string, stopCh <-chan struct{}) (<
 		namespaces = []string{metav1.NamespaceAll}
 		c.isNamespaceAll = true
 	}
+
 	c.watchedNamespaces = namespaces
 
+	// As we currently do not filter out kubernetes secrets, we can retrieve
+	// a huge amount of data from the API server.
+	// In a cluster using HELM >= v3 secrets are used to store large binary data.
+	// If you happen to have a lot of HELM releases in the cluster it will make
+	// the memory consumption of traefik explode.
+	// In order to avoid that we filter out labels owner=helm.
+	tweakListOptionsFunc := func(options *metav1.ListOptions) {
+		if len(options.LabelSelector) > 0 {
+			options.LabelSelector += ",owner!=helm"
+		} else {
+			options.LabelSelector = "owner!=helm"
+		}
+	}
+
 	for _, ns := range namespaces {
-		factoryCrd := externalversions.NewSharedInformerFactoryWithOptions(c.csCrd, resyncPeriod, externalversions.WithNamespace(ns))
+		factoryCrd := externalversions.NewSharedInformerFactoryWithOptions(
+			c.csCrd,
+			resyncPeriod,
+			externalversions.WithNamespace(ns),
+		)
+
 		factoryCrd.Traefik().V1alpha1().IngressRoutes().Informer().AddEventHandler(eventHandler)
 		factoryCrd.Traefik().V1alpha1().Middlewares().Informer().AddEventHandler(eventHandler)
 		factoryCrd.Traefik().V1alpha1().IngressRouteTCPs().Informer().AddEventHandler(eventHandler)
@@ -165,7 +185,13 @@ func (c *clientWrapper) WatchAll(namespaces []string, stopCh <-chan struct{}) (<
 		factoryCrd.Traefik().V1alpha1().TLSStores().Informer().AddEventHandler(eventHandler)
 		factoryCrd.Traefik().V1alpha1().TraefikServices().Informer().AddEventHandler(eventHandler)
 
-		factoryKube := informers.NewSharedInformerFactoryWithOptions(c.csKube, resyncPeriod, informers.WithNamespace(ns))
+		factoryKube := informers.NewSharedInformerFactoryWithOptions(
+			c.csKube,
+			resyncPeriod,
+			informers.WithNamespace(ns),
+			informers.WithTweakListOptions(tweakListOptionsFunc),
+		)
+
 		factoryKube.Extensions().V1beta1().Ingresses().Informer().AddEventHandler(eventHandler)
 		factoryKube.Core().V1().Services().Informer().AddEventHandler(eventHandler)
 		factoryKube.Core().V1().Endpoints().Informer().AddEventHandler(eventHandler)

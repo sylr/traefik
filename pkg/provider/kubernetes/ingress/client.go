@@ -134,8 +134,28 @@ func (c *clientWrapper) WatchAll(namespaces []string, stopCh <-chan struct{}) (<
 
 	c.watchedNamespaces = namespaces
 
+	// As we currently do not filter out kubernetes secrets, we can retrieve
+	// a huge amount of data from the API server.
+	// In a cluster using HELM >= v3 secrets are used to store large binary data.
+	// If you happen to have a lot of HELM releases in the cluster it will make
+	// the memory consumption of traefik explode.
+	// In order to avoid that we filter out labels owner=helm.
+	tweakListOptionsFunc := func(options *metav1.ListOptions) {
+		if len(options.LabelSelector) > 0 {
+			options.LabelSelector += ",owner!=helm"
+		} else {
+			options.LabelSelector = "owner!=helm"
+		}
+	}
+
 	for _, ns := range namespaces {
-		factory := informers.NewSharedInformerFactoryWithOptions(c.clientset, resyncPeriod, informers.WithNamespace(ns))
+		factory := informers.NewSharedInformerFactoryWithOptions(
+			c.clientset,
+			resyncPeriod,
+			informers.WithNamespace(ns),
+			informers.WithTweakListOptions(tweakListOptionsFunc),
+		)
+
 		factory.Extensions().V1beta1().Ingresses().Informer().AddEventHandler(eventHandler)
 		factory.Core().V1().Services().Informer().AddEventHandler(eventHandler)
 		factory.Core().V1().Endpoints().Informer().AddEventHandler(eventHandler)
