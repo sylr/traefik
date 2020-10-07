@@ -393,6 +393,10 @@ func (c *clientWrapper) newResourceEventHandler(events chan<- interface{}) cache
 				return c.labelSelector.Matches(labels.Set(v.GetLabels()))
 			case *v1alpha1.Middleware:
 				return c.labelSelector.Matches(labels.Set(v.GetLabels()))
+			case *corev1.Secret:
+				lreq, _ := labels.NewRequirement("owner", "notin", []string{"helm"})
+				lseq := labels.NewSelector().Add(*lreq)
+				return lseq.Matches(labels.Set(v.GetLabels()))
 			default:
 				return true
 			}

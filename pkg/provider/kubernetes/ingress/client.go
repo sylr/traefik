@@ -341,6 +341,11 @@ func (c *clientWrapper) newResourceEventHandler(events chan<- interface{}) cache
 			case *networkingv1beta1.Ingress:
 				lbls := labels.Set(v.GetLabels())
 				return c.ingressLabelSelector.Matches(lbls)
+			case *corev1.Secret:
+				lbls := labels.Set(v.GetLabels())
+				lreq, _ := labels.NewRequirement("owner", "notin", []string{"helm"})
+				lseq := labels.NewSelector().Add(*lreq)
+				return lseq.Matches(lbls)
 			default:
 				return true
 			}
