@@ -4,9 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/containous/traefik/v2/pkg/log"
+	traefikversion "github.com/containous/traefik/v2/pkg/version"
 	"github.com/golang/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -107,6 +111,14 @@ func newExternalClusterClient(endpoint, token, caFilePath string) (*clientWrappe
 }
 
 func createClientFromConfig(c *rest.Config) (*clientWrapper, error) {
+	c.UserAgent = fmt.Sprintf(
+		"%s/%s (%s/%s) kubernetes/ingress",
+		filepath.Base(os.Args[0]),
+		traefikversion.Version,
+		runtime.GOOS,
+		runtime.GOARCH,
+	)
+
 	clientset, err := kubernetes.NewForConfig(c)
 	if err != nil {
 		return nil, err
