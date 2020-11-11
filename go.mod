@@ -78,7 +78,7 @@ require (
 	github.com/unrolled/render v1.0.2
 	github.com/unrolled/secure v1.0.7
 	github.com/vdemeester/shakers v0.1.0
-	github.com/vulcand/oxy v1.1.0
+	github.com/vulcand/oxy v1.1.1-0.20201106205824-577ef7a2383b
 	github.com/vulcand/predicate v1.1.0
 	go.elastic.co/apm v1.7.0
 	go.elastic.co/apm/module/apmot v1.7.0
@@ -107,5 +107,3 @@ replace (
 	github.com/mailgun/minheap => github.com/containous/minheap v0.0.0-20190809180810-6e71eb837595
 	github.com/mailgun/multibuf => github.com/containous/multibuf v0.0.0-20190809014333-8b6c9a7e6bba
 )
-
-replace github.com/vulcand/oxy => github.com/sylr/oxy v1.1.1-0.20200616103808-a0437a24ad17
