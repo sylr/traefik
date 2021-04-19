@@ -2,7 +2,7 @@
 
 SRCS = $(shell git ls-files '*.go' | grep -v '^vendor/')
 
-TAG_NAME := $(shell git tag -l --contains HEAD)
+TAG_NAME := $(shell git describe --always --tags --dirty --broken 2>/dev/null || echo dev)
 SHA := $(shell git rev-parse HEAD)
 VERSION_GIT := $(if $(TAG_NAME),$(TAG_NAME),$(SHA))
 VERSION := $(if $(VERSION),$(VERSION),$(VERSION_GIT))
@@ -18,6 +18,7 @@ TRAEFIK_IMAGE := $(if $(REPONAME),$(REPONAME),"traefik/traefik")
 INTEGRATION_OPTS := $(if $(MAKE_DOCKER_HOST),-e "DOCKER_HOST=$(MAKE_DOCKER_HOST)", -e "TEST_CONTAINER=1" -v "/var/run/docker.sock:/var/run/docker.sock")
 DOCKER_BUILD_ARGS := $(if $(DOCKER_VERSION), "--build-arg=DOCKER_VERSION=$(DOCKER_VERSION)",)
 DOCKER_BUILD_PLATFORMS ?= "linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6"
+DOCKER_BUILD_CACHE     ?= /tmp/.buildx-cache
 
 TRAEFIK_ENVS := \
 	-e OS_ARCH_ARG \
@@ -35,6 +36,14 @@ DOCKER_RUN_OPTS := $(TRAEFIK_ENVS) $(TRAEFIK_MOUNT) "$(TRAEFIK_DEV_IMAGE)"
 DOCKER_NON_INTERACTIVE ?= false
 DOCKER_RUN_TRAEFIK := docker run --add-host=host.docker.internal:127.0.0.1 $(INTEGRATION_OPTS) $(if $(DOCKER_NON_INTERACTIVE), , -it) $(DOCKER_RUN_OPTS)
 DOCKER_RUN_TRAEFIK_NOTTY := docker run $(INTEGRATION_OPTS) $(if $(DOCKER_NON_INTERACTIVE), , -i) $(DOCKER_RUN_OPTS)
+
+DOCKER_BUILD_LABELS  = --label org.opencontainers.image.title=Traefik
+DOCKER_BUILD_LABELS += --label org.opencontainers.image.description="A modern reverse-proxy"
+DOCKER_BUILD_LABELS += --label org.opencontainers.image.url="https://github.com/sylr/traefik"
+DOCKER_BUILD_LABELS += --label org.opencontainers.image.source="https://github.com/sylr/traefik"
+DOCKER_BUILD_LABELS += --label org.opencontainers.image.revision=$(SHA)
+DOCKER_BUILD_LABELS += --label org.opencontainers.image.version=$(TAG_NAME)
+DOCKER_BUILD_LABELS += --label org.opencontainers.image.created=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
 PRE_TARGET ?= build-dev-image
 
@@ -60,7 +69,21 @@ build-webui-image:
 
 ## Build Multi archs Docker image
 build-multi-arch-image:
-	docker buildx build -t $(TRAEFIK_IMAGE) --platform=$(DOCKER_BUILD_PLATFORMS) --build-arg ARG_PLATFORM_URL=$(PLATFORM_URL) -f buildx.Dockerfile .
+	docker buildx build $(DOCKER_BUILD_LABELS) -t $(TRAEFIK_IMAGE) \
+		--cache-to=type=local,dest=$(DOCKER_BUILD_CACHE) \
+		--cache-from=type=local,src=$(DOCKER_BUILD_CACHE) \
+		--platform=$(DOCKER_BUILD_PLATFORMS) \
+		--build-arg ARG_PLATFORM_URL=$(PLATFORM_URL) \
+		-f buildx.Dockerfile .
+
+push-multi-arch-image:
+	docker buildx build $(DOCKER_BUILD_LABELS) -t $(TRAEFIK_IMAGE) \
+		--cache-to=type=local,dest=$(DOCKER_BUILD_CACHE) \
+		--cache-from=type=local,src=$(DOCKER_BUILD_CACHE) \
+		--platform=$(DOCKER_BUILD_PLATFORMS) \
+		--build-arg ARG_PLATFORM_URL=$(PLATFORM_URL) \
+		-f buildx.Dockerfile . \
+		--push
 
 ## Generate WebUI
 generate-webui: build-webui-image
