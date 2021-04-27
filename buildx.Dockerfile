@@ -12,9 +12,9 @@ COPY ./webui/ /src/webui/
 RUN npm install
 RUN npm run build
 
-# -- GO MOD --------------------------------------------------------------------
+# -- GO BUILD ------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM golang:1.16-alpine as gomod
+FROM --platform=$BUILDPLATFORM golang:1.16-alpine as gobuild
 
 WORKDIR /go/src/github.com/traefik/traefik
 
@@ -23,21 +23,13 @@ COPY go.sum .
 
 RUN go mod download
 
-# -- GO BUILD ------------------------------------------------------------------
-
-FROM --platform=$BUILDPLATFORM golang:1.16-alpine as gobuild
-
-WORKDIR /go/src/github.com/traefik/traefik
-
 RUN apk --update upgrade \
-    && apk --no-cache --no-progress add git mercurial bash gcc musl-dev curl tar ca-certificates tzdata \
+    && apk --no-cache --no-progress add git mercurial bash gcc musl-dev curl tar ca-certificates tzdata libcap \
     && update-ca-certificates
 
 RUN mkdir -p /usr/local/bin \
     && curl -fsSL -o /usr/local/bin/go-bindata https://github.com/containous/go-bindata/releases/download/v1.0.0/go-bindata \
     && chmod +x /usr/local/bin/go-bindata
-
-COPY --from=gomod /go/pkg/ /go/pkg/
 
 COPY . .
 
@@ -48,6 +40,9 @@ COPY --from=webui /src/static/ static/
 RUN ./script/make.sh generate
 
 ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
 
 SHELL ["bash", "-c"]
 
