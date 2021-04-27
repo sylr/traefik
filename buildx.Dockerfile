@@ -52,6 +52,7 @@ ARG TARGETPLATFORM
 SHELL ["bash", "-c"]
 
 RUN OUTPUT="dist/$TARGETPLATFORM/traefik" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT/v/} ./script/make.sh binary
+RUN setcap cap_net_bind_service=+ep "dist/$TARGETPLATFORM/traefik"
 
 # -- scratch -------------------------------------------------------------------
 
