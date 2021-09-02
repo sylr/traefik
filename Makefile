@@ -168,7 +168,7 @@ docs-serve:
 docs-pull-images:
 	make -C ./docs docs-pull-images
 
-## Generate CRD clientset
+## Generate CRD clientset and CRD manifests
 generate-crd:
 	@$(CURDIR)/script/code-gen.sh
 

@@ -81,10 +81,11 @@ require (
 	github.com/vdemeester/shakers v0.1.0
 	github.com/vulcand/oxy v1.3.0
 	github.com/vulcand/predicate v1.1.0
-	go.elastic.co/apm v1.11.0
-	go.elastic.co/apm/module/apmot v1.11.0
+	go.elastic.co/apm v1.13.1
+	go.elastic.co/apm/module/apmot v1.13.1
 	golang.org/x/mod v0.4.2
 	golang.org/x/net v0.0.0-20210428140749-89ef3d95e781
+	golang.org/x/sys v0.0.0-20210817190340-bfb29a6856f2 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
 	golang.org/x/tools v0.1.1
 	google.golang.org/grpc v1.27.1
@@ -95,10 +96,8 @@ require (
 	k8s.io/apiextensions-apiserver v0.20.2
 	k8s.io/apimachinery v0.21.0
 	k8s.io/client-go v0.21.0
-	k8s.io/code-generator v0.21.0
 	k8s.io/utils v0.0.0-20210709001253-0e1f9d693477
 	mvdan.cc/xurls/v2 v2.1.0
-	sigs.k8s.io/controller-tools v0.5.0
 	sigs.k8s.io/gateway-api v0.3.0
 )
 
