@@ -28,8 +28,8 @@ RUN apk --update upgrade \
     && update-ca-certificates
 
 RUN mkdir -p /usr/local/bin \
-    && curl -fsSL -o /usr/local/bin/go-bindata https://github.com/containous/go-bindata/releases/download/v1.0.0/go-bindata \
-    && chmod +x /usr/local/bin/go-bindata
+    && curl -fsSL -o /tmp/go-bindata.tgz "https://github.com/containous/go-bindata/archive/refs/tags/v1.0.0.tar.gz" \
+    && cd /tmp && tar xvzf go-bindata.tgz && cd go-bindata-1.0.0 && go mod init github.com/containous/go-bindata && go get ./... && go mod download && go install ./...
 
 COPY . .
 
@@ -46,7 +46,7 @@ ARG TARGETVARIANT
 
 SHELL ["bash", "-c"]
 
-RUN OUTPUT="dist/$TARGETPLATFORM/traefik" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT/v/} ./script/make.sh binary
+RUN VERSION="$(git describe --tags --always)" OUTPUT="dist/$TARGETPLATFORM/traefik" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT/v/} ./script/make.sh binary
 RUN setcap cap_net_bind_service=+ep "dist/$TARGETPLATFORM/traefik"
 
 # -- scratch -------------------------------------------------------------------
