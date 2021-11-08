@@ -131,7 +131,6 @@ The Kubernetes Ingress Controller, The Custom Resource Way.
         - tcpep
       routes:
       - match: HostSNI(`bar`)
-        kind: Rule
         services:
           - name: whoamitcp
             port: 8080
@@ -147,8 +146,7 @@ The Kubernetes Ingress Controller, The Custom Resource Way.
       entryPoints:
         - udpep
       routes:
-      - kind: Rule
-        services:
+      - services:
           - name: whoamiudp
             port: 8080
     ```
@@ -477,7 +475,7 @@ Register the `IngressRoute` [kind](../../reference/dynamic-configuration/kuberne
 
 !!! important "Using Kubernetes ExternalName Service"
 
-    Traefik backends creation needs a port to be set, however Kubernetes [ExternalName Service](https://kubernetes.io/fr/docs/concepts/services-networking/service/#externalname) could be defined without any port.
+    Traefik backends creation needs a port to be set, however Kubernetes [ExternalName Service](https://kubernetes.io/docs/concepts/services-networking/service/#externalname) could be defined without any port.
     Accordingly, Traefik supports defining a port in two ways:
     
     - only on `IngressRoute` service
@@ -1200,7 +1198,7 @@ Register the `IngressRouteTCP` [kind](../../reference/dynamic-configuration/kube
 
 !!! important "Using Kubernetes ExternalName Service"
 
-    Traefik backends creation needs a port to be set, however Kubernetes [ExternalName Service](https://kubernetes.io/fr/docs/concepts/services-networking/service/#externalname) could be defined without any port.
+    Traefik backends creation needs a port to be set, however Kubernetes [ExternalName Service](https://kubernetes.io/docs/concepts/services-networking/service/#externalname) could be defined without any port.
     Accordingly, Traefik supports defining a port in two ways:
     
     - only on `IngressRouteTCP` service
@@ -1224,7 +1222,6 @@ Register the `IngressRouteTCP` [kind](../../reference/dynamic-configuration/kube
         
           routes:
           - match: HostSNI(`*`)
-            kind: Rule
             services:
             - name: external-svc
               port: 80
@@ -1254,7 +1251,6 @@ Register the `IngressRouteTCP` [kind](../../reference/dynamic-configuration/kube
         
           routes:
           - match: HostSNI(`*`)
-            kind: Rule
             services:
             - name: external-svc
               port: 80
@@ -1379,7 +1375,7 @@ Register the `IngressRouteUDP` [kind](../../reference/dynamic-configuration/kube
 
 !!! important "Using Kubernetes ExternalName Service"
 
-    Traefik backends creation needs a port to be set, however Kubernetes [ExternalName Service](https://kubernetes.io/fr/docs/concepts/services-networking/service/#externalname) could be defined without any port.
+    Traefik backends creation needs a port to be set, however Kubernetes [ExternalName Service](https://kubernetes.io/docs/concepts/services-networking/service/#externalname) could be defined without any port.
     Accordingly, Traefik supports defining a port in two ways:
     
     - only on `IngressRouteUDP` service
