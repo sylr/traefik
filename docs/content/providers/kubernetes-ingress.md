@@ -229,7 +229,7 @@ See [label-selectors](https://kubernetes.io/docs/concepts/overview/working-with-
 ```yaml tab="File (YAML)"
 providers:
   kubernetesIngress:
-    labelselector: "app=traefik"
+    labelSelector: "app=traefik"
     # ...
 ```
 
@@ -493,4 +493,4 @@ providers:
 ### Further
 
 To learn more about the various aspects of the Ingress specification that Traefik supports,
-many examples of Ingresses definitions are located in the test [examples](https://github.com/traefik/traefik/tree/v2.5/pkg/provider/kubernetes/ingress/fixtures) of the Traefik repository.
+many examples of Ingresses definitions are located in the test [examples](https://github.com/traefik/traefik/tree/v2.6/pkg/provider/kubernetes/ingress/fixtures) of the Traefik repository.

@@ -54,6 +54,9 @@ Certificates resolvers configuration. (Default: ```false```)
 `--certificatesresolvers.<name>.acme.caserver`:  
 CA server to use. (Default: ```https://acme-v02.api.letsencrypt.org/directory```)
 
+`--certificatesresolvers.<name>.acme.certificatesduration`:  
+Certificates' duration in hours. (Default: ```2160```)
+
 `--certificatesresolvers.<name>.acme.dnschallenge`:  
 Activate DNS-01 Challenge. (Default: ```false```)
 
@@ -102,9 +105,6 @@ Entry points definition. (Default: ```false```)
 `--entrypoints.<name>.address`:  
 Entry point address.
 
-`--entrypoints.<name>.enablehttp3`:  
-Enable HTTP3. (Default: ```false```)
-
 `--entrypoints.<name>.forwardedheaders.insecure`:  
 Trust all forwarded headers. (Default: ```false```)
 
@@ -146,6 +146,12 @@ Subject alternative names.
 
 `--entrypoints.<name>.http.tls.options`:  
 Default TLS options for the routers linked to the entry point.
+
+`--entrypoints.<name>.http3`:  
+HTTP3 configuration. (Default: ```false```)
+
+`--entrypoints.<name>.http3.advertisedport`:  
+UDP port to advertise, on which HTTP/3 is available. (Default: ```0```)
 
 `--entrypoints.<name>.proxyprotocol`:  
 Proxy-Protocol configuration. (Default: ```false```)
@@ -237,6 +243,9 @@ Enable metrics on routers. (Default: ```false```)
 `--metrics.datadog.addserviceslabels`:  
 Enable metrics on services. (Default: ```true```)
 
+`--metrics.datadog.prefix`:  
+Prefix to use for metrics collection. (Default: ```traefik```)
+
 `--metrics.datadog.pushinterval`:  
 Datadog push interval. (Default: ```10```)
 
@@ -245,6 +254,9 @@ InfluxDB metrics exporter type. (Default: ```false```)
 
 `--metrics.influxdb.addentrypointslabels`:  
 Enable metrics on entry points. (Default: ```true```)
+
+`--metrics.influxdb.additionallabels.<name>`:  
+Additional labels (influxdb tags) on all metrics
 
 `--metrics.influxdb.address`:  
 InfluxDB address. (Default: ```localhost:8089```)
@@ -339,6 +351,9 @@ Enable Consul backend with default settings. (Default: ```false```)
 `--providers.consul.endpoints`:  
 KV store endpoints (Default: ```127.0.0.1:8500```)
 
+`--providers.consul.namespace`:  
+KV Namespace
+
 `--providers.consul.password`:  
 KV Password
 
@@ -359,6 +374,9 @@ TLS insecure skip verify (Default: ```false```)
 
 `--providers.consul.tls.key`:  
 TLS key
+
+`--providers.consul.token`:  
+KV Token
 
 `--providers.consul.username`:  
 KV Username
@@ -419,6 +437,9 @@ Token is used to provide a per-request ACL token which overrides the agent's def
 
 `--providers.consulcatalog.exposedbydefault`:  
 Expose containers by default. (Default: ```true```)
+
+`--providers.consulcatalog.namespace`:  
+Sets the namespace used to discover services (Consul Enterprise only).
 
 `--providers.consulcatalog.prefix`:  
 Prefix for consul service tags. Default 'traefik' (Default: ```traefik```)
@@ -519,6 +540,9 @@ Enable Etcd backend with default settings. (Default: ```false```)
 `--providers.etcd.endpoints`:  
 KV store endpoints (Default: ```127.0.0.1:2379```)
 
+`--providers.etcd.namespace`:  
+KV Namespace
+
 `--providers.etcd.password`:  
 KV Password
 
@@ -539,6 +563,9 @@ TLS insecure skip verify (Default: ```false```)
 
 `--providers.etcd.tls.key`:  
 TLS key
+
+`--providers.etcd.token`:  
+KV Token
 
 `--providers.etcd.username`:  
 KV Username
@@ -774,6 +801,9 @@ Enable Redis backend with default settings. (Default: ```false```)
 `--providers.redis.endpoints`:  
 KV store endpoints (Default: ```127.0.0.1:6379```)
 
+`--providers.redis.namespace`:  
+KV Namespace
+
 `--providers.redis.password`:  
 KV Password
 
@@ -795,6 +825,9 @@ TLS insecure skip verify (Default: ```false```)
 `--providers.redis.tls.key`:  
 TLS key
 
+`--providers.redis.token`:  
+KV Token
+
 `--providers.redis.username`:  
 KV Username
 
@@ -809,6 +842,9 @@ Enable ZooKeeper backend with default settings. (Default: ```false```)
 
 `--providers.zookeeper.endpoints`:  
 KV store endpoints (Default: ```127.0.0.1:2181```)
+
+`--providers.zookeeper.namespace`:  
+KV Namespace
 
 `--providers.zookeeper.password`:  
 KV Password
@@ -830,6 +866,9 @@ TLS insecure skip verify (Default: ```false```)
 
 `--providers.zookeeper.tls.key`:  
 TLS key
+
+`--providers.zookeeper.token`:  
+KV Token
 
 `--providers.zookeeper.username`:  
 KV Username
@@ -921,11 +960,14 @@ Sets the header name used to store the trace ID.
 `--tracing.instana`:  
 Settings for Instana. (Default: ```false```)
 
+`--tracing.instana.enableautoprofile`:  
+Enables automatic profiling for the Traefik process. (Default: ```false```)
+
 `--tracing.instana.localagenthost`:  
 Sets the Instana Agent host.
 
 `--tracing.instana.localagentport`:  
-Sets the Instana Agent port used. (Default: ```42699```)
+Sets the Instana Agent port. (Default: ```42699```)
 
 `--tracing.instana.loglevel`:  
 Sets the log level for the Instana tracer. ('error','warn','info','debug') (Default: ```info```)

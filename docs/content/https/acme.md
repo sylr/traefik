@@ -140,7 +140,11 @@ Please check the [configuration examples below](#configuration-examples) for mor
 
 Traefik automatically tracks the expiry date of ACME certificates it generates.
 
-If there are less than 30 days remaining before the certificate expires, Traefik will attempt to renew it automatically.
+By default, Traefik manages 90 days certificates,
+and starts to renew certificates 30 days before their expiry.
+
+When using a certificates resolver that issues certificates with custom durations,
+one can configure the certificates' duration with the [`certificatesDuration`](#certificatesduration) option.
 
 !!! info ""
     Certificates that are no longer used may still be renewed, as Traefik does not currently check if the certificate is being used before renewing.
@@ -367,7 +371,9 @@ For complete details, refer to your provider's _Additional configuration_ link.
 | [Simply.com](https://www.simply.com/en/domains/)            | `simply`       | `SIMPLY_ACCOUNT_NAME`, `SIMPLY_API_KEY`                                                                                                     | [Additional configuration](https://go-acme.github.io/lego/dns/simply)       |
 | [Sonic](https://www.sonic.com/)                             | `sonic`        | `SONIC_USER_ID`, `SONIC_API_KEY`                                                                                                            | [Additional configuration](https://go-acme.github.io/lego/dns/sonic)        |
 | [Stackpath](https://www.stackpath.com/)                     | `stackpath`    | `STACKPATH_CLIENT_ID`, `STACKPATH_CLIENT_SECRET`, `STACKPATH_STACK_ID`                                                                      | [Additional configuration](https://go-acme.github.io/lego/dns/stackpath)    |
+| [Tencent Cloud DNS](https://cloud.tencent.com/product/cns)  | `tencentcloud` | `TENCENTCLOUD_SECRET_ID`, `TENCENTCLOUD_SECRET_KEY`                                                                                         | [Additional configuration](https://go-acme.github.io/lego/dns/tencentcloud) |
 | [TransIP](https://www.transip.nl/)                          | `transip`      | `TRANSIP_ACCOUNT_NAME`, `TRANSIP_PRIVATE_KEY_PATH`                                                                                          | [Additional configuration](https://go-acme.github.io/lego/dns/transip)      |
+| [UKFast SafeDNS](https://www.ukfast.co.uk/dns-hosting.html) | `safedns`      | `SAFEDNS_AUTH_TOKEN`                                                                                                                        | [Additional configuration](https://go-acme.github.io/lego/dns/safedns)      |
 | [VegaDNS](https://github.com/shupp/VegaDNS-API)             | `vegadns`      | `SECRET_VEGADNS_KEY`, `SECRET_VEGADNS_SECRET`, `VEGADNS_URL`                                                                                | [Additional configuration](https://go-acme.github.io/lego/dns/vegadns)      |
 | [Versio](https://www.versio.nl/domeinnamen)                 | `versio`       | `VERSIO_USERNAME`, `VERSIO_PASSWORD`                                                                                                        | [Additional configuration](https://go-acme.github.io/lego/dns/versio)       |
 | [VinylDNS](https://www.vinyldns.io)                         | `vinyldns`     | `VINYLDNS_ACCESS_KEY`, `VINYLDNS_SECRET_KEY`, `VINYLDNS_HOST`                                                                               | [Additional configuration](https://go-acme.github.io/lego/dns/vinyldns)     |
@@ -532,6 +538,50 @@ docker run -v "/my/host/acme:/etc/traefik/acme" traefik
 
 !!! warning
     For concurrency reasons, this file cannot be shared across multiple instances of Traefik.
+
+### `certificatesDuration`
+
+_Optional, Default=2160_
+
+The `certificatesDuration` option defines the certificates' duration in hours.
+It defaults to `2160` (90 days) to follow Let's Encrypt certificates' duration.
+
+!!! warning "Traefik cannot manage certificates with a duration lower than 1 hour."
+
+```yaml tab="File (YAML)"
+certificatesResolvers:
+  myresolver:
+    acme:
+      # ...
+      certificatesDuration: 72
+      # ...
+```
+
+```toml tab="File (TOML)"
+[certificatesResolvers.myresolver.acme]
+  # ...
+  certificatesDuration=72
+  # ...
+```
+
+```bash tab="CLI"
+# ...
+--certificatesresolvers.myresolver.acme.certificatesduration=72
+# ...
+```
+
+`certificatesDuration` is used to calculate two durations:
+
+- `Renew Period`: the period before the end of the certificate duration, during which the certificate should be renewed.
+- `Renew Interval`: the interval between renew attempts.
+
+| Certificate Duration | Renew Period      | Renew Interval          |
+|----------------------|-------------------|-------------------------|
+| >= 1 year            | 4 months          | 1 week                  |
+| >= 90 days           | 30 days           | 1 day                   |
+| >= 7 days            | 1 day             | 1 hour                  |
+| >= 24 hours          | 6 hours           | 10 min                  |
+| < 24 hours           | 20 min            | 1 min                   |
 
 ### `preferredChain`
 
