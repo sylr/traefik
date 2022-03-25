@@ -1,20 +1,21 @@
 # -- WEBUI ---------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM node:12.22 as webui
-
-ARG ARG_PLATFORM_URL=https://pilot.traefik.io
-ENV PLATFORM_URL=${ARG_PLATFORM_URL}
+FROM --platform=$BUILDPLATFORM node:14.19 as webui
 
 WORKDIR /src/webui/
 
-COPY ./webui/ /src/webui/
+COPY ./webui/package.json ./
+COPY ./webui/yarn.lock ./
 
-RUN npm install
-RUN npm run build
+RUN yarn install
+
+COPY ./webui/ ./
+
+RUN yarn build
 
 # -- GO BUILD ------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM golang:1.17-alpine as gobuild
+FROM --platform=$BUILDPLATFORM golang:1.18-alpine as gobuild
 
 WORKDIR /go/src/github.com/traefik/traefik
 
@@ -55,7 +56,12 @@ FROM scratch
 
 ARG TARGETPLATFORM
 
-COPY script/ca-certificates.crt /etc/ssl/certs/
+COPY --from=gobuild /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=gobuild /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=gobuild /etc/passwd /etc/passwd
+COPY --from=gobuild /etc/group /etc/group
+COPY --from=gobuild /etc/services /etc/services
+
 COPY --from=gobuild /go/src/github.com/traefik/traefik/dist/$TARGETPLATFORM/traefik /
 
 EXPOSE 80
