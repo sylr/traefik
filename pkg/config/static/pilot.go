@@ -9,5 +9,5 @@ type Pilot struct {
 
 // SetDefaults sets the default values.
 func (p *Pilot) SetDefaults() {
-	p.Dashboard = true
+	p.Dashboard = false
 }
