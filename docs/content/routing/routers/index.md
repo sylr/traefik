@@ -673,6 +673,21 @@ If no matching route is found for the TCP routers, then the HTTP routers will ta
 If not specified, TCP routers will accept requests from all defined entry points.
 If you want to limit the router scope to a set of entry points, set the entry points option.
 
+??? info "How to handle Server First protocols?"
+
+    To correctly handle a request, Traefik needs to wait for the first
+    few bytes to arrive before it can decide what to do with it.
+
+    For protocols where the server is expected to send first, such
+    as SMTP, if no specific setup is in place, we could end up in
+    a situation where both sides are waiting for data and the
+    connection appears to have hanged.
+
+    The only way that Traefik can deal with such a case, is to make 
+    sure that on the concerned entry point, there is no TLS router 
+    whatsoever (neither TCP nor HTTP), and there is at least one 
+    non-TLS TCP router that leads to the server in question.
+
 ??? example "Listens to Every Entry Point"
 
     **Dynamic Configuration**
@@ -1306,3 +1321,18 @@ There must be one (and only one) UDP [service](../services/index.md) referenced 
 Services are the target for the router.
 
 !!! important "UDP routers can only target UDP services (and not HTTP or TCP services)."
+
+!!! question "Using Traefik for Business Applications?"
+
+    If you are using Traefik for commercial applications,
+    consider the [Enterprise Edition](https://traefik.io/traefik-enterprise/).
+    You can use it as your:
+
+    - [Kubernetes Ingress Controller](https://traefik.io/solutions/kubernetes-ingress/)
+    - [Load Balancer](https://traefik.io/solutions/docker-swarm-ingress/)
+    - [API Gateway](https://traefik.io/solutions/api-gateway/)
+
+    Traefik Enterprise enables centralized access management,
+    distributed Let's Encrypt,
+    and other advanced capabilities.
+    Learn more in [this 15-minute technical walkthrough](https://info.traefik.io/watch-traefikee-demo).

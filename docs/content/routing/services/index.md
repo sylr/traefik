@@ -322,14 +322,14 @@ To propagate status changes (e.g. all servers of this service are down) upwards,
 
 Below are the available options for the health check mechanism:
 
-- `path` is appended to the server URL to set the health check endpoint.
-- `scheme`, if defined, will replace the server URL `scheme` for the health check endpoint
-- `hostname`, if defined, will apply `Host` header `hostname` to the health check request.
-- `port`, if defined, will replace the server URL `port` for the health check endpoint.
-- `interval` defines the frequency of the health check calls.
-- `timeout` defines the maximum duration Traefik will wait for a health check request before considering the server failed (unhealthy).
-- `headers` defines custom headers to be sent to the health check endpoint.
-- `followRedirects` defines whether redirects should be followed during the health check calls (default: true).
+- `path` (required), defines the server URL path for the health check endpoint .
+- `scheme` (optional), replaces the server URL `scheme` for the health check endpoint.
+- `hostname` (optional), sets the value of `hostname` in the `Host` header of the health check request.
+- `port` (optional), replaces the server URL `port` for the health check endpoint.
+- `interval` (default: 30s), defines the frequency of the health check calls.
+- `timeout` (default: 5s), defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.
+- `headers` (optional), defines custom headers to be sent to the health check endpoint.
+- `followRedirects` (default: true), defines whether redirects should be followed during the health check calls.
 
 !!! info "Interval & Timeout Format"
 
@@ -1645,3 +1645,18 @@ udp:
       [[udp.services.appv2.loadBalancer.servers]]
         address = "private-ip-server-2:8080/"
 ```
+
+!!! question "Using Traefik for Business Applications?"
+
+    If you are using Traefik for commercial applications,
+    consider the [Enterprise Edition](https://traefik.io/traefik-enterprise/).
+    You can use it as your:
+
+    - [Kubernetes Ingress Controller](https://traefik.io/solutions/kubernetes-ingress/)
+    - [Load Balancer](https://traefik.io/solutions/docker-swarm-ingress/)
+    - [API Gateway](https://traefik.io/solutions/api-gateway/)
+
+    Traefik Enterprise enables centralized access management,
+    distributed Let's Encrypt,
+    and other advanced capabilities.
+    Learn more in [this 15-minute technical walkthrough](https://info.traefik.io/watch-traefikee-demo).
