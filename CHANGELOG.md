@@ -1,3 +1,30 @@
+## [v2.8.3](https://github.com/traefik/traefik/tree/v2.8.3) (2022-08-12)
+[All Commits](https://github.com/traefik/traefik/compare/v2.8.2...v2.8.3)
+
+**Bug fixes:**
+- **[file]** Update paerser to v0.1.8 ([#9258](https://github.com/traefik/traefik/pull/9258) by [ldez](https://github.com/ldez))
+- **[marathon]** Add missing context in backoff for Marathon ([#9246](https://github.com/traefik/traefik/pull/9246) by [rtribotte](https://github.com/rtribotte))
+
+## [v2.8.2](https://github.com/traefik/traefik/tree/v2.8.2) (2022-08-11)
+[All Commits](https://github.com/traefik/traefik/compare/v2.8.1...v2.8.2)
+
+**Bug fixes:**
+- **[k8s/ingress,k8s]** Place namespace before name in router key for Ingress ([#9221](https://github.com/traefik/traefik/pull/9221) by [longshine](https://github.com/longshine))
+- **[kv]** Update valkeyrie to a9a70ee ([#9243](https://github.com/traefik/traefik/pull/9243) by [kevinpollet](https://github.com/kevinpollet))
+- **[logs,middleware,tracing]** Remove request dump from IPWhitelist debug log and tracing message ([#9244](https://github.com/traefik/traefik/pull/9244) by [rtribotte](https://github.com/rtribotte))
+- **[metrics]** Control allocation and copy of labelNamesValues type ([#9241](https://github.com/traefik/traefik/pull/9241) by [rtribotte](https://github.com/rtribotte))
+- **[metrics]** Fix service up gauge for Prometheus metrics ([#9197](https://github.com/traefik/traefik/pull/9197) by [juliens](https://github.com/juliens))
+- **[plugins]** Bump paerser to v0.1.6 ([#9224](https://github.com/traefik/traefik/pull/9224) by [ldez](https://github.com/ldez))
+- **[yaml]** Add missing inline tag for YAML serialization ([#9182](https://github.com/traefik/traefik/pull/9182) by [kevinpollet](https://github.com/kevinpollet))
+
+**Documentation:**
+- **[k8s]** Fix wording of default behavior for namespaces option ([#9222](https://github.com/traefik/traefik/pull/9222) by [markormesher](https://github.com/markormesher))
+- **[k8s]** Add getting started guide for Kubernetes ([#9163](https://github.com/traefik/traefik/pull/9163) by [moutoum](https://github.com/moutoum))
+- **[plugins]** Remove Traefik Pilot and add a Traefik Plugins Catalog page ([#9171](https://github.com/traefik/traefik/pull/9171) by [sdelicata](https://github.com/sdelicata))
+- Update Thank You page with proper branding and grammar fixes ([#9203](https://github.com/traefik/traefik/pull/9203) by [tfny](https://github.com/tfny))
+- Update CONTRIBUTING.md to contain all information in one place ([#9192](https://github.com/traefik/traefik/pull/9192) by [tfny](https://github.com/tfny))
+- Update the PR guidelines in Contributing docs ([#9179](https://github.com/traefik/traefik/pull/9179) by [tfny](https://github.com/tfny))
+
 ## [v2.8.1](https://github.com/traefik/traefik/tree/v2.8.1) (2022-07-11)
 [All Commits](https://github.com/traefik/traefik/compare/v2.8.0...v2.8.1)
 
@@ -247,7 +274,7 @@ Release canceled.
 - **[webui]** Add a link to service on router detail view ([#8821](https://github.com/traefik/traefik/pull/8821) by [Tchoupinax](https://github.com/Tchoupinax))
 
 **Documentation:**
--  Add a Feature Deprecation page ([#8868](https://github.com/traefik/traefik/pull/8868) by [ddtmachado](https://github.com/ddtmachado))
+- Add a Feature Deprecation page ([#8868](https://github.com/traefik/traefik/pull/8868) by [ddtmachado](https://github.com/ddtmachado))
 
 **Misc:**
 - Merge current v2.6 into master ([#8877](https://github.com/traefik/traefik/pull/8877) by [rtribotte](https://github.com/rtribotte))
@@ -614,7 +641,6 @@ Release canceled.
 - Merge current v2.4 into master ([#7761](https://github.com/traefik/traefik/pull/7761) by [rtribotte](https://github.com/rtribotte))
 - Merge current v2.4 into master ([#7748](https://github.com/traefik/traefik/pull/7748) by [kevinpollet](https://github.com/kevinpollet))
 - Merge current v2.4 into master ([#7728](https://github.com/traefik/traefik/pull/7728) by [mmatur](https://github.com/mmatur))
-
 
 ## [v2.4.14](https://github.com/traefik/traefik/tree/v2.4.14) (2021-08-16)
 [All Commits](https://github.com/traefik/traefik/compare/v2.4.13...v2.4.14)
@@ -3431,7 +3457,6 @@ Same changelog as v2.0.3.
 ## [v1.7.0-rc2](https://github.com/traefik/traefik/tree/v1.7.0-rc2) (2018-07-17)
 [All Commits](https://github.com/traefik/traefik/compare/v1.7.0-rc1...v1.7.0-rc2)
 
-
 **Bug fixes:**
 - **[acme,provider]** Create init method on provider interface ([#3580](https://github.com/traefik/traefik/pull/3580) by [Juliens](https://github.com/Juliens))
 - **[acme]** Serve TLS-Challenge certificate in first ([#3605](https://github.com/traefik/traefik/pull/3605) by [nmengin](https://github.com/nmengin))
@@ -4441,7 +4466,7 @@ Same changelog as v2.0.3.
 - **[acme]** Dumpcerts.sh: fixed sed, extracted domain keys ([#2161](https://github.com/traefik/traefik/pull/2161) by [sjawhar](https://github.com/sjawhar))
 - Merge current v1.4 into master  ([#2469](https://github.com/traefik/traefik/pull/2469) by [ldez](https://github.com/ldez))
 - Revert &#34;Merge v1.4.2 into master&#34; ([#2414](https://github.com/traefik/traefik/pull/2414) by [ldez](https://github.com/ldez))
--  Merge v1.4.3 into master ([#2406](https://github.com/traefik/traefik/pull/2406) by [ldez](https://github.com/ldez))
+- Merge v1.4.3 into master ([#2406](https://github.com/traefik/traefik/pull/2406) by [ldez](https://github.com/ldez))
 - Merge v1.4.2 into master ([#2358](https://github.com/traefik/traefik/pull/2358) by [ldez](https://github.com/ldez))
 - Merge v1.4.3 into master ([#2415](https://github.com/traefik/traefik/pull/2415) by [ldez](https://github.com/ldez))
 - Merge v1.4.1 into master  ([#2318](https://github.com/traefik/traefik/pull/2318) by [ldez](https://github.com/ldez))
@@ -5790,7 +5815,7 @@ Same changelog as v2.0.3.
 - Fix k8s watch [\#573](https://github.com/traefik/traefik/pull/573) ([errm](https://github.com/errm))
 - Add requirements.txt for netlify [\#567](https://github.com/traefik/traefik/pull/567) ([emilevauge](https://github.com/emilevauge))
 - Merge v1.0.1 master [\#565](https://github.com/traefik/traefik/pull/565) ([emilevauge](https://github.com/emilevauge))
--  Move webui to FountainJS with Webpack [\#558](https://github.com/traefik/traefik/pull/558) ([micaelmbagira](https://github.com/micaelmbagira))
+- Move webui to FountainJS with Webpack [\#558](https://github.com/traefik/traefik/pull/558) ([micaelmbagira](https://github.com/micaelmbagira))
 - Add global InsecureSkipVerify option to disable certificate checking [\#557](https://github.com/traefik/traefik/pull/557) ([stuart-c](https://github.com/stuart-c))
 - Move version.go in its own package… [\#553](https://github.com/traefik/traefik/pull/553) ([vdemeester](https://github.com/vdemeester))
 - Upgrade libkermit and dependencies [\#552](https://github.com/traefik/traefik/pull/552) ([vdemeester](https://github.com/vdemeester))
@@ -6013,7 +6038,7 @@ Same changelog as v2.0.3.
 - Fix k8s watch [\#573](https://github.com/traefik/traefik/pull/573) ([errm](https://github.com/errm))
 - Add requirements.txt for netlify [\#567](https://github.com/traefik/traefik/pull/567) ([emilevauge](https://github.com/emilevauge))
 - Merge v1.0.1 master [\#565](https://github.com/traefik/traefik/pull/565) ([emilevauge](https://github.com/emilevauge))
--  Move webui to FountainJS with Webpack [\#558](https://github.com/traefik/traefik/pull/558) ([micaelmbagira](https://github.com/micaelmbagira))
+- Move webui to FountainJS with Webpack [\#558](https://github.com/traefik/traefik/pull/558) ([micaelmbagira](https://github.com/micaelmbagira))
 - Add global InsecureSkipVerify option to disable certificate checking [\#557](https://github.com/traefik/traefik/pull/557) ([stuart-c](https://github.com/stuart-c))
 - Move version.go in its own package… [\#553](https://github.com/traefik/traefik/pull/553) ([vdemeester](https://github.com/vdemeester))
 - Upgrade libkermit and dependencies [\#552](https://github.com/traefik/traefik/pull/552) ([vdemeester](https://github.com/vdemeester))
@@ -6174,7 +6199,5 @@ Same changelog as v2.0.3.
 - Fix travis tag check [\#422](https://github.com/traefik/traefik/pull/422) ([emilevauge](https://github.com/emilevauge))
 - log info about TOML configuration file using [\#420](https://github.com/traefik/traefik/pull/420) ([cocap10](https://github.com/cocap10))
 - Doc about skipping some integration tests with '-check.f ConsulCatalogSuite' [\#418](https://github.com/traefik/traefik/pull/418) ([samber](https://github.com/samber))
-
-
 
 \* *This Change Log was automatically generated by [gcg](https://github.com/ldez/gcg)*

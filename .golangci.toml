@@ -119,6 +119,7 @@
     "interfacer", # Deprecated
     "maligned", # Deprecated
     "golint", # Deprecated
+    "nosnakecase", # Deprecated
     "execinquery", # Not relevant (SQL)
     "sqlclosecheck", # Not relevant (SQL)
     "rowserrcheck", # Not relevant (SQL)
@@ -159,6 +160,7 @@
     "containedctx", # too many false-positive
     "maintidx", # kind of duplicate of gocyclo
     "nonamedreturns", # not relevant
+    "structcheck", # duplicate of unused
   ]
 
 [issues]
@@ -179,7 +181,7 @@
   ]
  [[issues.exclude-rules]]
     path = "(.+)_test.go"
-    linters = ["goconst", "funlen", "godot"]
+    linters = ["goconst", "funlen", "godot", "nosnakecase"]
  [[issues.exclude-rules]]
     path = "integration/.+_test.go"
     text = "Error return value of `cmd\\.Process\\.Kill` is not checked"
@@ -222,3 +224,10 @@
  [[issues.exclude-rules]]
     path = "pkg/server/router/tcp/manager.go"
     text = "Function 'buildEntryPointHandler' is too long (.+)"
+ [[issues.exclude-rules]]
+    path = "pkg/tls/tlsmanager_test.go"
+    text = "SA1019: config.ClientCAs.Subjects has been deprecated since Go 1.18"
+ [[issues.exclude-rules]]
+    path = "pkg/types/tls_test.go"
+    text = "SA1019: tlsConfig.RootCAs.Subjects has been deprecated since Go 1.18"
+

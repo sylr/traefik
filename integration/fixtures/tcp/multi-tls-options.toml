@@ -36,12 +36,12 @@
     [tcp.services.whoami-no-cert]
       [tcp.services.whoami-no-cert.loadBalancer]
         [[tcp.services.whoami-no-cert.loadBalancer.servers]]
-        address = "whoami-no-cert:8080"
+        address = "{{ .WhoamiNoCert }}"
 
 [tls.options]
 
   [tls.options.foo]
-    minVersion = "VersionTLS11"
+    minVersion = "VersionTLS12"
 
   [tls.options.bar]
-    minVersion = "VersionTLS12"
+    minVersion = "VersionTLS13"
