@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"net"
+	"sort"
+	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/traefik/traefik/v2/pkg/config/dynamic"
@@ -37,8 +40,7 @@ func (p *Provider) buildConfiguration(ctx context.Context, items []itemData, cer
 		if len(confFromLabel.TCP.Routers) > 0 || len(confFromLabel.TCP.Services) > 0 {
 			tcpOrUDP = true
 
-			err := p.buildTCPServiceConfiguration(item, confFromLabel.TCP)
-			if err != nil {
+			if err := p.buildTCPServiceConfiguration(item, confFromLabel.TCP); err != nil {
 				logger.Error(err)
 				continue
 			}
@@ -49,8 +51,7 @@ func (p *Provider) buildConfiguration(ctx context.Context, items []itemData, cer
 		if len(confFromLabel.UDP.Routers) > 0 || len(confFromLabel.UDP.Services) > 0 {
 			tcpOrUDP = true
 
-			err := p.buildUDPServiceConfiguration(item, confFromLabel.UDP)
-			if err != nil {
+			if err := p.buildUDPServiceConfiguration(item, confFromLabel.UDP); err != nil {
 				logger.Error(err)
 				continue
 			}
@@ -75,8 +76,7 @@ func (p *Provider) buildConfiguration(ctx context.Context, items []itemData, cer
 			}
 		}
 
-		err = p.buildServiceConfiguration(item, confFromLabel.HTTP)
-		if err != nil {
+		if err = p.buildServiceConfiguration(item, confFromLabel.HTTP); err != nil {
 			logger.Error(err)
 			continue
 		}
@@ -89,7 +89,7 @@ func (p *Provider) buildConfiguration(ctx context.Context, items []itemData, cer
 			Labels: item.Labels,
 		}
 
-		provider.BuildRouterConfiguration(ctx, confFromLabel.HTTP, provider.Normalize(item.Name), p.defaultRuleTpl, model)
+		provider.BuildRouterConfiguration(ctx, confFromLabel.HTTP, getName(item), p.defaultRuleTpl, model)
 
 		configurations[svcName] = confFromLabel
 	}
@@ -135,14 +135,13 @@ func (p *Provider) buildTCPServiceConfiguration(item itemData, configuration *dy
 		lb := &dynamic.TCPServersLoadBalancer{}
 		lb.SetDefaults()
 
-		configuration.Services[provider.Normalize(item.Name)] = &dynamic.TCPService{
+		configuration.Services[getName(item)] = &dynamic.TCPService{
 			LoadBalancer: lb,
 		}
 	}
 
 	for name, service := range configuration.Services {
-		err := p.addServerTCP(item, service.LoadBalancer)
-		if err != nil {
+		if err := p.addServerTCP(item, service.LoadBalancer); err != nil {
 			return fmt.Errorf("%s: %w", name, err)
 		}
 	}
@@ -156,14 +155,13 @@ func (p *Provider) buildUDPServiceConfiguration(item itemData, configuration *dy
 
 		lb := &dynamic.UDPServersLoadBalancer{}
 
-		configuration.Services[provider.Normalize(item.Name)] = &dynamic.UDPService{
+		configuration.Services[getName(item)] = &dynamic.UDPService{
 			LoadBalancer: lb,
 		}
 	}
 
 	for name, service := range configuration.Services {
-		err := p.addServerUDP(item, service.LoadBalancer)
-		if err != nil {
+		if err := p.addServerUDP(item, service.LoadBalancer); err != nil {
 			return fmt.Errorf("%s: %w", name, err)
 		}
 	}
@@ -178,14 +176,13 @@ func (p *Provider) buildServiceConfiguration(item itemData, configuration *dynam
 		lb := &dynamic.ServersLoadBalancer{}
 		lb.SetDefaults()
 
-		configuration.Services[provider.Normalize(item.Name)] = &dynamic.Service{
+		configuration.Services[getName(item)] = &dynamic.Service{
 			LoadBalancer: lb,
 		}
 	}
 
 	for name, service := range configuration.Services {
-		err := p.addServer(item, service.LoadBalancer)
-		if err != nil {
+		if err := p.addServer(item, service.LoadBalancer); err != nil {
 			return fmt.Errorf("%s: %w", name, err)
 		}
 	}
@@ -293,4 +290,19 @@ func (p *Provider) addServer(item itemData, loadBalancer *dynamic.ServersLoadBal
 
 func itemServersTransportKey(item itemData) string {
 	return provider.Normalize("tls-" + item.Namespace + "-" + item.Datacenter + "-" + item.Name)
+}
+
+func getName(i itemData) string {
+	if !i.ExtraConf.ConsulCatalog.Canary {
+		return provider.Normalize(i.Name)
+	}
+
+	tags := make([]string, len(i.Tags))
+	copy(tags, i.Tags)
+
+	sort.Strings(tags)
+
+	hasher := fnv.New64()
+	hasher.Write([]byte(strings.Join(tags, "")))
+	return provider.Normalize(fmt.Sprintf("%s-%d", i.Name, hasher.Sum64()))
 }

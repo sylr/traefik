@@ -47,7 +47,8 @@ Traefik needs the following policy to read ECS information:
                 "ecs:DescribeTasks",
                 "ecs:DescribeContainerInstances",
                 "ecs:DescribeTaskDefinition",
-                "ec2:DescribeInstances"
+                "ec2:DescribeInstances",
+                "ssm:DescribeInstanceInformation"
             ],
             "Resource": [
                 "*"
@@ -57,6 +58,10 @@ Traefik needs the following policy to read ECS information:
 }
 ```
 
+!!! info "ECS Anywhere"
+
+    Please note that the `ssm:DescribeInstanceInformation` action is required for ECS anywhere instances discovery.
+
 ## Provider Configuration
 
 ### `autoDiscoverClusters`
@@ -65,7 +70,7 @@ _Optional, Default=false_
 
 Search for services in cluster list.
 
-- If set to `true` service discovery is disabled on configured clusters, but enabled for all other clusters.
+- If set to `true` service discovery is enabled for all clusters.
 - If set to `false` service discovery is enabled on configured clusters only.
 
 ```yaml tab="File (YAML)"
@@ -86,11 +91,39 @@ providers:
 # ...
 ```
 
+### `ecsAnywhere`
+
+_Optional, Default=false_
+
+Enable ECS Anywhere support.
+
+- If set to `true` service discovery is enabled for ECS Anywhere instances.
+- If set to `false` service discovery is disabled for ECS Anywhere instances.
+
+```yaml tab="File (YAML)"
+providers:
+  ecs:
+    ecsAnywhere: true
+    # ...
+```
+
+```toml tab="File (TOML)"
+[providers.ecs]
+  ecsAnywhere = true
+  # ...
+```
+
+```bash tab="CLI"
+--providers.ecs.ecsAnywhere=true
+# ...
+```
+
 ### `clusters`
 
 _Optional, Default=["default"]_
 
 Search for services in cluster list.
+This option is ignored if `autoDiscoverClusters` is set to `true`.
 
 ```yaml tab="File (YAML)"
 providers:
