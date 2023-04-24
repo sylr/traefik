@@ -36,7 +36,7 @@ COPY . .
 
 RUN rm -rf static/
 
-COPY --from=webui /src/webui/static/ ./static/
+COPY --from=webui /src/webui/static/ ./webui/static/
 
 RUN ./script/make.sh generate
 
