@@ -1,3 +1,49 @@
+## [v2.10.4](https://github.com/traefik/traefik/tree/v2.10.4) (2023-07-24)
+[All Commits](https://github.com/traefik/traefik/compare/v2.10.3...v2.10.4)
+
+**Bug fixes:**
+- **[acme]** Update go-acme/lego to v4.13.2 ([#10036](https://github.com/traefik/traefik/pull/10036) by [ldez](https://github.com/ldez))
+- **[acme]** Update go-acme/lego to v4.13.0 ([#10029](https://github.com/traefik/traefik/pull/10029) by [ldez](https://github.com/ldez))
+- **[k8s/ingress,k8s]** fix: avoid panic on resource backends ([#10023](https://github.com/traefik/traefik/pull/10023) by [ldez](https://github.com/ldez))
+- **[middleware,tracing,plugins]** fix: traceability of the middleware plugins ([#10028](https://github.com/traefik/traefik/pull/10028) by [ldez](https://github.com/ldez))
+
+**Documentation:**
+- Update maintainers guidelines ([#9981](https://github.com/traefik/traefik/pull/9981) by [geraldcroes](https://github.com/geraldcroes))
+- Update release documentation ([#9975](https://github.com/traefik/traefik/pull/9975) by [rtribotte](https://github.com/rtribotte))
+
+**Misc:**
+- **[webui]** Updates the Hub tooltip content using a web component and adds an option to disable Hub button ([#10008](https://github.com/traefik/traefik/pull/10008) by [mdeliatf](https://github.com/mdeliatf))
+
+## [v2.10.3](https://github.com/traefik/traefik/tree/v2.10.3) (2023-06-17)
+[All Commits](https://github.com/traefik/traefik/compare/v2.10.2...v2.10.3)
+
+**Bug fixes:**
+- **[acme]** Update go-acme/lego to v4.12.2 ([#9935](https://github.com/traefik/traefik/pull/9971) by [ldez](https://github.com/ldez))
+
+## [v2.10.2](https://github.com/traefik/traefik/tree/v2.10.2) (2023-06-17)
+[All Commits](https://github.com/traefik/traefik/compare/v2.10.1...v2.10.2)
+
+**Bug fixes:**
+- **[acme]** Update go-acme/lego to v4.12.1 ([#9935](https://github.com/traefik/traefik/pull/9935) by [ldez](https://github.com/ldez))
+- **[acme]** Update go-acme/lego to v4.12.0 ([#9918](https://github.com/traefik/traefik/pull/9918) by [ldez](https://github.com/ldez))
+- **[acme]** Update go-acme/lego to v4.11.0 ([#9883](https://github.com/traefik/traefik/pull/9883) by [ldez](https://github.com/ldez))
+- **[acme]** Do not check for wildcard domains for non DNS challenge ([#9881](https://github.com/traefik/traefik/pull/9881) by [erkexzcx](https://github.com/erkexzcx))
+- **[k8s/crd]** Fix multiple subsets endpoint ([#9914](https://github.com/traefik/traefik/pull/9914) by [joaosilva15](https://github.com/joaosilva15))
+- **[k8s/ingress,k8s/crd,k8s,hub]** Clean code related to Hub ([#9894](https://github.com/traefik/traefik/pull/9894) by [ldez](https://github.com/ldez))
+- **[metrics]** Enable Prometheus provider cleanup when only the router&#39;s metrics level is activated ([#9887](https://github.com/traefik/traefik/pull/9887) by [rtribotte](https://github.com/rtribotte))
+- **[middleware]** Encode query semicolons ([#9943](https://github.com/traefik/traefik/pull/9943) by [LandryBe](https://github.com/LandryBe))
+- **[middleware]** Missing trailer with custom errors middleware ([#9942](https://github.com/traefik/traefik/pull/9942) by [rtribotte](https://github.com/rtribotte))
+- **[middleware]** Support informational headers in middlewares redefining the response writer. ([#9938](https://github.com/traefik/traefik/pull/9938) by [rtribotte](https://github.com/rtribotte))
+- **[plugins]** Improve error messages related to plugins ([#9924](https://github.com/traefik/traefik/pull/9924) by [ldez](https://github.com/ldez))
+- **[tracing]** Update DataDog tracing dependency to v1.50.1 ([#9953](https://github.com/traefik/traefik/pull/9953) by [der-eismann](https://github.com/der-eismann))
+
+**Documentation:**
+- **[accesslogs]** Fix over-indented yaml configuration of access logs ([#9930](https://github.com/traefik/traefik/pull/9930) by [ufUNnxagpM](https://github.com/ufUNnxagpM))
+- **[tls]** Add FAQ documentation about TLS certificates ([#9868](https://github.com/traefik/traefik/pull/9868) by [rtribotte](https://github.com/rtribotte))
+- Fix typo ([#9966](https://github.com/traefik/traefik/pull/9966) by [green1052](https://github.com/green1052))
+- Add business callouts ([#9940](https://github.com/traefik/traefik/pull/9940) by [tomatokoolaid](https://github.com/tomatokoolaid))
+- Add logo for GitHub dark mode ([#9890](https://github.com/traefik/traefik/pull/9890) by [ldez](https://github.com/ldez))
+
 ## [v2.10.1](https://github.com/traefik/traefik/tree/v2.10.1) (2023-04-27)
 [All Commits](https://github.com/traefik/traefik/compare/v2.10.0...v2.10.1)
 
