@@ -47,7 +47,16 @@ ARG TARGETVARIANT
 
 SHELL ["bash", "-c"]
 
-RUN VERSION="$(git describe --tags --always)" OUTPUT="dist/$TARGETPLATFORM/traefik" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT/v/} ./script/make.sh binary
+RUN if [ "${TARGETARCH}" = "amd64" ]; then \
+        VERSION="$(git describe --tags --always)" OUTPUT="dist/$TARGETPLATFORM/traefik" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOAMD64=${TARGETVARIANT} ./script/make.sh binary; \
+    elif [ "${TARGETARCH}" = "arm" ]; then \
+        VERSION="$(git describe --tags --always)" OUTPUT="dist/$TARGETPLATFORM/traefik" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT/v/} ./script/make.sh binary; \
+    elif [ "${TARGETARCH}" = "arm64" ]; then \
+        VERSION="$(git describe --tags --always)" OUTPUT="dist/$TARGETPLATFORM/traefik" GOOS=${TARGETOS} GOARCH=${TARGETARCH} ./script/make.sh binary; \
+    else \
+        echo "Unsupported architecture: ${TARGETARCH}"; exit 1; \
+    fi
+
 RUN setcap cap_net_bind_service=+ep "dist/$TARGETPLATFORM/traefik"
 
 # -- scratch -------------------------------------------------------------------
