@@ -8,8 +8,6 @@
 [entryPoints]
   [entryPoints.web]
     address = ":8000"
-    [entryPoints.web.proxyProtocol]
-      trustedIPs = ["{{.HaproxyIP}}"]
 
 [api]
   insecure = true
@@ -22,11 +20,21 @@
 [http.routers]
   [http.routers.router1]
     service = "service1"
-    rule = "Path(`/whoami`)"
+    middlewares = [ "retry", "strip-prefix" ]
+    rule = "PathPrefix(`/`)"
+
+[http.middlewares.retry.retry]
+  attempts = 3
+
+[http.middlewares.strip-prefix.stripPrefix]
+  prefixes = [ "/test" ]
 
 [http.services]
   [http.services.service1]
     [http.services.service1.loadBalancer]
 
       [[http.services.service1.loadBalancer.servers]]
-        url = "http://{{.WhoamiIP}}"
+        url = "http://{{ .WhoamiIP }}:8080"
+
+      [[http.services.service1.loadBalancer.servers]]
+        url = "http://{{ .WhoamiIP }}:80"

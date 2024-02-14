@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2016-2020 Containous SAS; 2020-2023 Traefik Labs
+Copyright (c) 2016-2020 Containous SAS; 2020-2024 Traefik Labs
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -84,7 +84,10 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 	return c.tracker
 }
 
-var _ clientset.Interface = &Clientset{}
+var (
+	_ clientset.Interface = &Clientset{}
+	_ testing.FakeClient  = &Clientset{}
+)
 
 // TraefikContainousV1alpha1 retrieves the TraefikContainousV1alpha1Client
 func (c *Clientset) TraefikContainousV1alpha1() traefikcontainousv1alpha1.TraefikContainousV1alpha1Interface {

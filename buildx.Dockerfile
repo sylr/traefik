@@ -1,6 +1,6 @@
 # -- WEBUI ---------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM node:14.19 as webui
+FROM --platform=$BUILDPLATFORM node:20.11 as webui
 
 WORKDIR /src/webui/
 
@@ -15,7 +15,7 @@ RUN yarn build
 
 # -- GO BUILD ------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM golang:1.21-alpine as gobuild
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine as gobuild
 
 WORKDIR /go/src/github.com/traefik/traefik
 
@@ -25,20 +25,14 @@ COPY go.sum .
 RUN go mod download
 
 RUN apk --update upgrade \
-    && apk --no-cache --no-progress add git mercurial bash gcc musl-dev curl tar ca-certificates tzdata libcap \
+    && apk --no-cache --no-progress add make git mercurial bash gcc musl-dev curl tar ca-certificates tzdata libcap \
     && update-ca-certificates
-
-RUN mkdir -p /usr/local/bin \
-    && curl -fsSL -o /tmp/go-bindata.tgz "https://github.com/containous/go-bindata/archive/refs/tags/v1.0.0.tar.gz" \
-    && cd /tmp && tar xvzf go-bindata.tgz && cd go-bindata-1.0.0 && go mod init github.com/containous/go-bindata && go get ./... && go mod download && go install ./...
 
 COPY . .
 
 RUN rm -rf static/
 
 COPY --from=webui /src/webui/static/ ./webui/static/
-
-RUN ./script/make.sh generate
 
 ARG TARGETPLATFORM
 ARG TARGETOS
@@ -48,11 +42,11 @@ ARG TARGETVARIANT
 SHELL ["bash", "-c"]
 
 RUN if [ "${TARGETARCH}" = "amd64" ]; then \
-        VERSION="$(git describe --tags --always)" OUTPUT="dist/$TARGETPLATFORM/traefik" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOAMD64=${TARGETVARIANT} ./script/make.sh binary; \
+        VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOAMD64=${TARGETVARIANT} make binary; \
     elif [ "${TARGETARCH}" = "arm" ]; then \
-        VERSION="$(git describe --tags --always)" OUTPUT="dist/$TARGETPLATFORM/traefik" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT/v/} ./script/make.sh binary; \
+        VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT/v/} make binary; \
     elif [ "${TARGETARCH}" = "arm64" ]; then \
-        VERSION="$(git describe --tags --always)" OUTPUT="dist/$TARGETPLATFORM/traefik" GOOS=${TARGETOS} GOARCH=${TARGETARCH} ./script/make.sh binary; \
+        VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} make binary; \
     else \
         echo "Unsupported architecture: ${TARGETARCH}"; exit 1; \
     fi

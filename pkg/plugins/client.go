@@ -4,6 +4,7 @@ import (
 	zipa "archive/zip"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -229,7 +230,7 @@ func (c *Client) Check(ctx context.Context, pName, pVersion, hash string) error 
 		return nil
 	}
 
-	return fmt.Errorf("plugin integrity check failed")
+	return errors.New("plugin integrity check failed")
 }
 
 // Unzip unzip a plugin archive.
@@ -423,5 +424,5 @@ func computeHash(filepath string) (string, error) {
 
 	sum := hash.Sum(nil)
 
-	return fmt.Sprintf("%x", sum), nil
+	return hex.EncodeToString(sum), nil
 }
