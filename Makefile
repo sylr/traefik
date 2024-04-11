@@ -10,8 +10,8 @@ GIT_BRANCH := $(subst heads/,,$(shell git rev-parse --abbrev-ref HEAD 2>/dev/nul
 
 REPONAME := $(shell echo $(REPO) | tr '[:upper:]' '[:lower:]')
 BIN_NAME := traefik
-CODENAME := cheddar
 TRAEFIK_IMAGE := $(if $(REPONAME),$(REPONAME),"traefik/traefik")
+CODENAME ?= cheddar
 
 INTEGRATION_OPTS := $(if $(MAKE_DOCKER_HOST),-e "DOCKER_HOST=$(MAKE_DOCKER_HOST)",-v "/var/run/docker.sock:/var/run/docker.sock")
 DOCKER_BUILD_ARGS := $(if $(DOCKER_VERSION), "--build-arg=DOCKER_VERSION=$(DOCKER_VERSION)",)

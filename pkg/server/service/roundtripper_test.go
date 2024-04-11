@@ -139,7 +139,7 @@ func TestKeepConnectionWhenSameConfiguration(t *testing.T) {
 		},
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		rtManager.Update(dynamicConf)
 
 		tr, err := rtManager.Get("test")
@@ -259,7 +259,6 @@ func TestDisableHTTP2(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		test := test
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
@@ -333,7 +332,6 @@ func TestKerberosRoundTripper(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		test := test
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
