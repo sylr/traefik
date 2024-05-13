@@ -31,7 +31,7 @@ Create a `docker-compose.yml` file with the following content:
     services:
 
       traefik:
-        image: "traefik:v2.11"
+        image: "traefik:v3.0"
         ...
         networks:
           - traefiknet
@@ -86,7 +86,7 @@ Second, you define an entry point, along with the exposure of the matching port 
 ```yaml
 command:
   # Traefik will listen to incoming request on the port 80 (HTTP)
-  - "--entrypoints.web.address=:80"
+  - "--entryPoints.web.address=:80"
 
 ports:
   - "80:80"
