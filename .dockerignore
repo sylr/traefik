@@ -1,5 +1,4 @@
 dist/
-!dist/**/traefik
-site/
 vendor/
 .idea/
+webuid/static/

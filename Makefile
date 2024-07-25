@@ -20,8 +20,8 @@ DOCKER_BUILD_CACHE     ?= /tmp/.buildx-cache
 DATE := $(shell date -u '+%Y-%m-%d_%I:%M:%S%p')
 
 # Default build target
-GOOS := $(shell $(GO) env GOOS)
-GOARCH := $(shell $(GO) env GOARCH)
+GOOS   ?= $(shell $(GO) env GOOS)
+GOARCH ?= $(shell $(GO) env GOARCH)
 
 LINT_EXECUTABLES = misspell shellcheck
 
@@ -60,14 +60,14 @@ clean-webui:
 ## Build Multi archs Docker image
 build-multi-arch-image:
 	docker buildx build $(DOCKER_BUILD_LABELS) -t $(TRAEFIK_IMAGE) \
-		--cache-to=type=local,dest=$(DOCKER_BUILD_CACHE) \
+		--cache-to=type=local,mode=max,dest=$(DOCKER_BUILD_CACHE) \
 		--cache-from=type=local,src=$(DOCKER_BUILD_CACHE) \
 		--platform=$(DOCKER_BUILD_PLATFORMS) \
 		-f buildx.Dockerfile .
 
 push-multi-arch-image:
 	docker buildx build $(DOCKER_BUILD_LABELS) -t $(TRAEFIK_IMAGE) \
-		--cache-to=type=local,dest=$(DOCKER_BUILD_CACHE) \
+		--cache-to=type=local,mode=max,dest=$(DOCKER_BUILD_CACHE) \
 		--cache-from=type=local,src=$(DOCKER_BUILD_CACHE) \
 		--platform=$(DOCKER_BUILD_PLATFORMS) \
 		-f buildx.Dockerfile . \
@@ -92,11 +92,11 @@ generate:
 #? binary: Build the binary
 binary: generate-webui dist
 	@echo SHA: $(VERSION) $(CODENAME) $(DATE)
-	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) GOAMD64=$(GOAMD64) $(GO) build ${FLAGS[*]} -ldflags "-s -w \
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM:v%=%) GOARM64=$(GOARM64) GOAMD64=$(GOAMD64) $(GO) build ${FLAGS[*]} -ldflags "-s -w \
     -X github.com/traefik/traefik/v2/pkg/version.Version=$(VERSION) \
     -X github.com/traefik/traefik/v2/pkg/version.Codename=$(CODENAME) \
     -X github.com/traefik/traefik/v2/pkg/version.BuildDate=$(DATE)" \
-    -installsuffix nocgo -o "./dist/${GOOS}/${GOARCH}/$(GOARM)$(GOAMD64)/$(BIN_NAME)" ./cmd/traefik
+    -installsuffix nocgo -o "./dist/$(GOOS)/$(GOARCH)/$(GOARM)$(GOARM64)$(GOAMD64)/$(BIN_NAME)" ./cmd/traefik
 
 binary-linux-arm64: export GOOS := linux
 binary-linux-arm64: export GOARCH := arm64

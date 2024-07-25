@@ -1,6 +1,6 @@
 # -- WEBUI ---------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM node:20.11 as webui
+FROM --platform=$BUILDPLATFORM node:20.15 AS webui
 
 WORKDIR /src/webui/
 
@@ -15,10 +15,11 @@ RUN yarn build
 
 # -- GO BUILD ------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine as gobuild
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS gobuild
 
 WORKDIR /go/src/github.com/traefik/traefik
 
+COPY --from=webui /src/webui/static/ ./webui/static/
 COPY go.mod .
 COPY go.sum .
 
@@ -30,10 +31,6 @@ RUN apk --update upgrade \
 
 COPY . .
 
-RUN rm -rf static/
-
-COPY --from=webui /src/webui/static/ ./webui/static/
-
 ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH
@@ -44,14 +41,14 @@ SHELL ["bash", "-c"]
 RUN if [ "${TARGETARCH}" = "amd64" ]; then \
         VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOAMD64=${TARGETVARIANT} make binary; \
     elif [ "${TARGETARCH}" = "arm" ]; then \
-        VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT/v/} make binary; \
+        VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT} make binary; \
     elif [ "${TARGETARCH}" = "arm64" ]; then \
-        VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} make binary; \
+        VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM64=${TARGETVARIANT} make binary; \
     else \
-        echo "Unsupported architecture: ${TARGETARCH}"; exit 1; \
+        echo "Unsupported architecture: ${TARGETPLATFORM}"; exit 1; \
     fi
 
-RUN setcap cap_net_bind_service=+ep "dist/$TARGETPLATFORM/traefik"
+RUN setcap cap_net_bind_service=+ep dist/${TARGETPLATFORM}/traefik
 
 # -- scratch -------------------------------------------------------------------
 
