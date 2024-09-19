@@ -117,8 +117,14 @@ Entry points definition. (Default: ```false```)
 `--entrypoints.<name>.address`:  
 Entry point address.
 
+`--entrypoints.<name>.allowacmebypass`:  
+Enables handling of ACME TLS and HTTP challenges with custom routers. (Default: ```false```)
+
 `--entrypoints.<name>.asdefault`:  
 Adds this EntryPoint to the list of default EntryPoints to be used on routers that don't have any Entrypoint defined. (Default: ```false```)
+
+`--entrypoints.<name>.forwardedheaders.connection`:  
+List of Connection headers that are allowed to pass through the middleware chain before being removed.
 
 `--entrypoints.<name>.forwardedheaders.insecure`:  
 Trust all forwarded headers. (Default: ```false```)
@@ -211,16 +217,34 @@ WriteTimeout is the maximum duration before timing out writes of the response. I
 Timeout defines how long to wait on an idle session before releasing the related resources. (Default: ```3```)
 
 `--experimental.kubernetesgateway`:  
-Allow the Kubernetes gateway api provider usage. (Default: ```false```)
+(Deprecated) Allow the Kubernetes gateway api provider usage. (Default: ```false```)
 
 `--experimental.localplugins.<name>`:  
 Local plugins configuration. (Default: ```false```)
 
 `--experimental.localplugins.<name>.modulename`:  
-plugin's module name.
+Plugin's module name.
+
+`--experimental.localplugins.<name>.settings`:  
+Plugin's settings (works only for wasm plugins).
+
+`--experimental.localplugins.<name>.settings.envs`:  
+Environment variables to forward to the wasm guest.
+
+`--experimental.localplugins.<name>.settings.mounts`:  
+Directory to mount to the wasm guest.
 
 `--experimental.plugins.<name>.modulename`:  
 plugin's module name.
+
+`--experimental.plugins.<name>.settings`:  
+Plugin's settings (works only for wasm plugins).
+
+`--experimental.plugins.<name>.settings.envs`:  
+Environment variables to forward to the wasm guest.
+
+`--experimental.plugins.<name>.settings.mounts`:  
+Directory to mount to the wasm guest.
 
 `--experimental.plugins.<name>.version`:  
 plugin's version.
@@ -708,6 +732,9 @@ Allow ExternalName services. (Default: ```false```)
 `--providers.kubernetescrd.certauthfilepath`:  
 Kubernetes certificate authority file path (not needed for in-cluster client).
 
+`--providers.kubernetescrd.disableclusterscoperesources`:  
+Disables the lookup of cluster scope resources (incompatible with IngressClasses and NodePortLB enabled services). (Default: ```false```)
+
 `--providers.kubernetescrd.endpoint`:  
 Kubernetes server endpoint (required for external cluster client).
 
@@ -780,8 +807,11 @@ Allow ExternalName services. (Default: ```false```)
 `--providers.kubernetesingress.certauthfilepath`:  
 Kubernetes certificate authority file path (not needed for in-cluster client).
 
+`--providers.kubernetesingress.disableclusterscoperesources`:  
+Disables the lookup of cluster scope resources (incompatible with IngressClasses and NodePortLB enabled services). (Default: ```false```)
+
 `--providers.kubernetesingress.disableingressclasslookup`:  
-Disables the lookup of IngressClasses. (Default: ```false```)
+Disables the lookup of IngressClasses (Deprecated, please use DisableClusterScopeResources). (Default: ```false```)
 
 `--providers.kubernetesingress.endpoint`:  
 Kubernetes server endpoint (required for external cluster client).
@@ -1106,6 +1136,9 @@ TLS insecure skip verify (Default: ```false```)
 
 `--tracing.otlp.http.tls.key`:  
 TLS key
+
+`--tracing.safequeryparams`:  
+Query params to not redact.
 
 `--tracing.samplerate`:  
 Sets the rate between 0.0 and 1.0 of requests to trace. (Default: ```1.000000```)

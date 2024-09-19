@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/coreos/go-systemd/daemon"
+	"github.com/coreos/go-systemd/v22/daemon"
 	"github.com/go-acme/lego/v4/challenge"
 	gokitmetrics "github.com/go-kit/kit/metrics"
 	"github.com/rs/zerolog/log"
@@ -46,6 +46,7 @@ import (
 	"github.com/traefik/traefik/v3/pkg/tracing"
 	"github.com/traefik/traefik/v3/pkg/types"
 	"github.com/traefik/traefik/v3/pkg/version"
+	"golang.org/x/exp/maps"
 )
 
 func main() {
@@ -224,10 +225,21 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 	}
 
 	// Plugins
+	pluginLogger := log.Ctx(ctx).With().Logger()
+	hasPlugins := staticConfiguration.Experimental != nil && (staticConfiguration.Experimental.Plugins != nil || staticConfiguration.Experimental.LocalPlugins != nil)
+	if hasPlugins {
+		pluginsList := maps.Keys(staticConfiguration.Experimental.Plugins)
+		pluginsList = append(pluginsList, maps.Keys(staticConfiguration.Experimental.LocalPlugins)...)
+
+		pluginLogger = pluginLogger.With().Strs("plugins", pluginsList).Logger()
+		pluginLogger.Info().Msg("Loading plugins...")
+	}
 
 	pluginBuilder, err := createPluginBuilder(staticConfiguration)
 	if err != nil {
-		log.Error().Err(err).Msg("Plugins are disabled because an error has occurred.")
+		pluginLogger.Err(err).Msg("Plugins are disabled because an error has occurred.")
+	} else if hasPlugins {
+		pluginLogger.Info().Msg("Plugins loaded.")
 	}
 
 	// Providers plugins
@@ -352,7 +364,7 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 
 			if _, ok := resolverNames[rt.TLS.CertResolver]; !ok {
 				log.Error().Err(err).Str(logs.RouterName, rtName).Str("certificateResolver", rt.TLS.CertResolver).
-					Msg("Router uses a non-existent certificate resolver")
+					Msg("Router uses a nonexistent certificate resolver")
 			}
 		}
 	})

@@ -21,6 +21,7 @@ import (
 	"github.com/traefik/traefik/v3/pkg/healthcheck"
 	"github.com/traefik/traefik/v3/pkg/logs"
 	"github.com/traefik/traefik/v3/pkg/middlewares/accesslog"
+	"github.com/traefik/traefik/v3/pkg/middlewares/capture"
 	metricsMiddle "github.com/traefik/traefik/v3/pkg/middlewares/metrics"
 	"github.com/traefik/traefik/v3/pkg/middlewares/observability"
 	"github.com/traefik/traefik/v3/pkg/safe"
@@ -222,6 +223,14 @@ func (m *Manager) getWRRServiceHandler(ctx context.Context, serviceName string, 
 
 	balancer := wrr.New(config.Sticky, config.HealthCheck != nil)
 	for _, service := range shuffle(config.Services, m.rand) {
+		if service.Status != nil {
+			serviceHandler := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				writer.WriteHeader(*service.Status)
+			})
+			balancer.Add(service.Name, serviceHandler, service.Weight)
+			continue
+		}
+
 		serviceHandler, err := m.BuildHTTP(ctx, service.Name)
 		if err != nil {
 			return nil, err
@@ -334,6 +343,17 @@ func (m *Manager) getLoadBalancerServiceHandler(ctx context.Context, serviceName
 			proxy = observability.NewService(ctx, serviceName, proxy)
 		}
 
+		if m.observabilityMgr.ShouldAddAccessLogs(qualifiedSvcName) || m.observabilityMgr.ShouldAddMetrics(qualifiedSvcName) {
+			// Some piece of middleware, like the ErrorPage, are relying on this serviceBuilder to get the handler for a given service,
+			// to re-target the request to it.
+			// Those pieces of middleware can be configured on routes that expose a Traefik internal service.
+			// In such a case, observability for internals being optional, the capture probe could be absent from context (no wrap via the entrypoint).
+			// But if the service targeted by this piece of middleware is not an internal one,
+			// and requires observability, we still want the capture probe to be present in the request context.
+			// Makes sure a capture probe is in the request context.
+			proxy, _ = capture.Wrap(proxy)
+		}
+
 		lb.Add(proxyName, proxy, server.Weight)
 
 		// servers are considered UP by default.
@@ -351,6 +371,7 @@ func (m *Manager) getLoadBalancerServiceHandler(ctx context.Context, serviceName
 			info,
 			roundTripper,
 			healthCheckTargets,
+			serviceName,
 		)
 	}
 

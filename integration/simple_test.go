@@ -833,7 +833,7 @@ func (s *SimpleSuite) TestWRRServer() {
 	require.NoError(s.T(), err)
 
 	repartition := map[string]int{}
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		req, err := http.NewRequest(http.MethodGet, "http://127.0.0.1:8000/whoami", nil)
 		require.NoError(s.T(), err)
 
@@ -1382,7 +1382,7 @@ func (s *SimpleSuite) TestDebugLog() {
 
 	req, err := http.NewRequest(http.MethodGet, "http://localhost:8000/whoami", http.NoBody)
 	require.NoError(s.T(), err)
-	req.Header.Set("Autorization", "Bearer ThisIsABearerToken")
+	req.Header.Set("Authorization", "Bearer ThisIsABearerToken")
 
 	response, err := http.DefaultClient.Do(req)
 	require.NoError(s.T(), err)
