@@ -521,7 +521,7 @@ func TestDo_staticConfiguration(t *testing.T) {
 	}
 
 	config.EntryPoints = static.EntryPoints{
-		"foobar": {
+		"foobar": &static.EntryPoint{
 			Address: "foo Address",
 			Transport: &static.EntryPointsTransport{
 				LifeCycle: &static.LifeCycle{
@@ -786,7 +786,7 @@ func TestDo_staticConfiguration(t *testing.T) {
 	}
 
 	config.Providers.HTTP = &http.Provider{
-		Endpoint:     "Myenpoint",
+		Endpoint:     "Myendpoint",
 		PollInterval: 42,
 		PollTimeout:  42,
 		TLS: &types.ClientTLS{

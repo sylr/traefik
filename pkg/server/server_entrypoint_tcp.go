@@ -172,7 +172,10 @@ func NewTCPEntryPoint(ctx context.Context, configuration *static.EntryPoint, hos
 		return nil, fmt.Errorf("error preparing server: %w", err)
 	}
 
-	rt := &tcprouter.Router{}
+	rt, err := tcprouter.NewRouter()
+	if err != nil {
+		return nil, fmt.Errorf("error preparing tcp router: %w", err)
+	}
 
 	reqDecorator := requestdecorator.New(hostResolverConfig)
 
@@ -562,6 +565,7 @@ func createHTTPServer(ctx context.Context, ln net.Listener, configuration *stati
 	handler, err = forwardedheaders.NewXForwarded(
 		configuration.ForwardedHeaders.Insecure,
 		configuration.ForwardedHeaders.TrustedIPs,
+		configuration.ForwardedHeaders.Connection,
 		next)
 	if err != nil {
 		return nil, err

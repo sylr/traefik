@@ -1,3 +1,57 @@
+## [v2.11.10](https://github.com/traefik/traefik/tree/v2.11.10) (2024-09-19)
+[All Commits](https://github.com/traefik/traefik/compare/v2.11.9...v2.11.10)
+
+**Bug fixes:**
+- **[http3]** Bump github.com/quic-go/quic-go to v0.47.0 ([#11104](https://github.com/traefik/traefik/pull/11104) by [rtribotte](https://github.com/rtribotte))
+- **[server]** Check if ACME certificate resolver is not nil ([#11103](https://github.com/traefik/traefik/pull/11103) by [kevinpollet](https://github.com/kevinpollet))
+
+## [v2.11.9](https://github.com/traefik/traefik/tree/v2.11.9) (2024-09-16)
+[All Commits](https://github.com/traefik/traefik/compare/v2.11.8...v2.11.9)
+
+**Bug fixes:**
+- **[acme]** Update go-acme/lego to v4.18.0 ([#11060](https://github.com/traefik/traefik/pull/11060) by [ldez](https://github.com/ldez))
+- **[acme]** Allow handling ACME challenges with custom routers ([#10981](https://github.com/traefik/traefik/pull/10981) by [rtribotte](https://github.com/rtribotte))
+- **[logs,middleware]** Make the keys of the accessLog.fields.names map case-insensitive ([#11040](https://github.com/traefik/traefik/pull/11040) by [SpecLad](https://github.com/SpecLad))
+- **[logs,middleware]** Ensure proper logs for aborted streaming responses ([#10819](https://github.com/traefik/traefik/pull/10819) by [hood](https://github.com/hood))
+- **[middleware,server]** Cleanup Connection headers before passing the middleware chain ([#11077](https://github.com/traefik/traefik/pull/11077) by [kevinpollet](https://github.com/kevinpollet))
+- **[plugins]** Upgrade paerser to v0.2.1 ([#11048](https://github.com/traefik/traefik/pull/11048) by [mmatur](https://github.com/mmatur))
+- **[server,tcp]** Prevent error logging when TCP WRR pool is empty ([#10989](https://github.com/traefik/traefik/pull/10989) by [kevinpollet](https://github.com/kevinpollet))
+- **[webui]** Upgrade webui dependencies ([#11031](https://github.com/traefik/traefik/pull/11031) by [mloiseleur](https://github.com/mloiseleur))
+
+**Documentation:**
+- **[acme]** Fix typo in multiple DNS challenge provider warning ([#11001](https://github.com/traefik/traefik/pull/11001) by [tired-engineer](https://github.com/tired-engineer))
+- **[k8s]** Update k8s quickstart permissions ([#11049](https://github.com/traefik/traefik/pull/11049) by [mmatur](https://github.com/mmatur))
+- **[metrics]** Remove documentation for unimplemented service retries metric  ([#10983](https://github.com/traefik/traefik/pull/10983) by [rtribotte](https://github.com/rtribotte))
+- **[middleware]** Unify tab titles ([#11072](https://github.com/traefik/traefik/pull/11072) by [jsoref](https://github.com/jsoref))
+- Give valid examples for exposing dashboard with default Helm values ([#11015](https://github.com/traefik/traefik/pull/11015) by [holysoles](https://github.com/holysoles))
+
+## [v2.11.8](https://github.com/traefik/traefik/tree/v2.11.8) (2024-08-06)
+[All Commits](https://github.com/traefik/traefik/compare/v2.11.7...v2.11.8)
+
+**Bug fixes:**
+- **[docker]** Update to github.com/docker/docker v27.1.1 ([#10955](https://github.com/traefik/traefik/pull/10955) by [rtribotte](https://github.com/rtribotte))
+- **[webui]** Upgrade webui dependencies ([#10961](https://github.com/traefik/traefik/pull/10961) by [mmatur](https://github.com/mmatur))
+
+**Documentation:**
+- Fix embedded youtube video ([#10958](https://github.com/traefik/traefik/pull/10958) by [mmatur](https://github.com/mmatur))
+- Updated index.md to include video ([#10944](https://github.com/traefik/traefik/pull/10944) by [tomatokoolaid](https://github.com/tomatokoolaid))
+
+## [v2.11.7](https://github.com/traefik/traefik/tree/v2.11.7) (2024-07-30)
+[All Commits](https://github.com/traefik/traefik/compare/v2.11.6...v2.11.7)
+
+**Bug fixes:**
+- **[logs]** Make the log about new version more accurate ([#10903](https://github.com/traefik/traefik/pull/10903) by [jmcbri](https://github.com/jmcbri))
+- **[tls,k8s/crd,k8s]** Enforce default cipher suites list ([#10907](https://github.com/traefik/traefik/pull/10907) by [rtribotte](https://github.com/rtribotte))
+
+**Documentation:**
+- **[acme]** Modify certificatesDuration documentation ([#10920](https://github.com/traefik/traefik/pull/10920) by [peacewalker122](https://github.com/peacewalker122))
+- **[api]** Improve explanation on API exposition ([#10926](https://github.com/traefik/traefik/pull/10926) by [mloiseleur](https://github.com/mloiseleur))
+- **[docker,consul,rancher,ecs]** Improve doc on sensitive data stored into labels/tags ([#10873](https://github.com/traefik/traefik/pull/10873) by [emilevauge](https://github.com/emilevauge))
+- **[docker,logs]** Improve error and documentation on the needed link between router and service ([#10262](https://github.com/traefik/traefik/pull/10262) by [mloiseleur](https://github.com/mloiseleur))
+- **[docker]** Document Docker port selection on multiple exposed ports ([#10935](https://github.com/traefik/traefik/pull/10935) by [mbrodala](https://github.com/mbrodala))
+- Update the supported versions table for v3.1 release ([#10933](https://github.com/traefik/traefik/pull/10933) by [jnoordsij](https://github.com/jnoordsij))
+- Update PR approval process ([#10887](https://github.com/traefik/traefik/pull/10887) by [emilevauge](https://github.com/emilevauge))
+
 ## [v2.11.6](https://github.com/traefik/traefik/tree/v2.11.6) (2024-07-02)
 [All Commits](https://github.com/traefik/traefik/compare/v2.11.5...v2.11.6)
 

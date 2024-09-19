@@ -16,6 +16,7 @@ serversTransport:
 entryPoints:
   EntryPoint0:
     address: foobar
+    allowACMEByPass: true
     transport:
       lifeCycle:
         requestAcceptGraceTimeout: 42s
@@ -34,6 +35,9 @@ entryPoints:
     forwardedHeaders:
       insecure: true
       trustedIPs:
+        - foobar
+        - foobar
+      connection:
         - foobar
         - foobar
     http:
