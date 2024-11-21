@@ -298,19 +298,9 @@ func (p *Provider) getClient() (*lego.Client, error) {
 		}
 
 		err = client.Challenge.SetDNS01Provider(provider,
-			dns01.CondOption(len(p.DNSChallenge.Resolvers) > 0, dns01.AddRecursiveNameservers(p.DNSChallenge.Resolvers)),
-			dns01.WrapPreCheck(func(domain, fqdn, value string, check dns01.PreCheckFunc) (bool, error) {
-				if p.DNSChallenge.DelayBeforeCheck > 0 {
-					logger.Debugf("Delaying %d rather than validating DNS propagation now.", p.DNSChallenge.DelayBeforeCheck)
-					time.Sleep(time.Duration(p.DNSChallenge.DelayBeforeCheck))
-				}
-
-				if p.DNSChallenge.DisablePropagationCheck {
-					return true, nil
-				}
-
-				return check(fqdn, value)
-			}),
+			dns01.CondOption(len(p.DNSChallenge.Resolvers) > 0,
+				dns01.AddRecursiveNameservers(p.DNSChallenge.Resolvers)),
+			dns01.PropagationWait(time.Duration(p.DNSChallenge.DelayBeforeCheck), p.DNSChallenge.DisablePropagationCheck),
 		)
 		if err != nil {
 			return nil, err
@@ -421,8 +411,7 @@ func (p *Provider) watchNewDomains(ctx context.Context) {
 
 						if len(route.TLS.Domains) > 0 {
 							domains := deleteUnnecessaryDomains(ctxRouter, route.TLS.Domains)
-							for i := range len(domains) {
-								domain := domains[i]
+							for _, domain := range domains {
 								safe.Go(func() {
 									dom, cert, err := p.resolveCertificate(ctx, domain, traefiktls.DefaultTLSStoreName)
 									if err != nil {
@@ -458,8 +447,7 @@ func (p *Provider) watchNewDomains(ctx context.Context) {
 
 						if len(route.TLS.Domains) > 0 {
 							domains := deleteUnnecessaryDomains(ctxRouter, route.TLS.Domains)
-							for i := range len(domains) {
-								domain := domains[i]
+							for _, domain := range domains {
 								safe.Go(func() {
 									dom, cert, err := p.resolveCertificate(ctx, domain, traefiktls.DefaultTLSStoreName)
 									if err != nil {
@@ -552,8 +540,11 @@ func (p *Provider) resolveDefaultCertificate(ctx context.Context, domains []stri
 
 	p.resolvingDomainsMutex.Lock()
 
-	sort.Strings(domains)
-	domainKey := strings.Join(domains, ",")
+	sortedDomains := make([]string, len(domains))
+	copy(sortedDomains, domains)
+	sort.Strings(sortedDomains)
+
+	domainKey := strings.Join(sortedDomains, ",")
 
 	if _, ok := p.resolvingDomains[domainKey]; ok {
 		p.resolvingDomainsMutex.Unlock()
@@ -947,12 +938,14 @@ func (p *Provider) certExists(validDomains []string) bool {
 	p.certificatesMu.RLock()
 	defer p.certificatesMu.RUnlock()
 
-	sort.Strings(validDomains)
+	sortedDomains := make([]string, len(validDomains))
+	copy(sortedDomains, validDomains)
+	sort.Strings(sortedDomains)
 
 	for _, cert := range p.certificates {
 		domains := cert.Certificate.Domain.ToStrArray()
 		sort.Strings(domains)
-		if reflect.DeepEqual(domains, validDomains) {
+		if reflect.DeepEqual(domains, sortedDomains) {
 			return true
 		}
 	}

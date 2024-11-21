@@ -6,9 +6,6 @@ SHA := $(shell git rev-parse HEAD)
 VERSION_GIT := $(if $(TAG_NAME),$(TAG_NAME),$(SHA))
 VERSION := $(if $(VERSION),$(VERSION),$(VERSION_GIT))
 
-GIT_BRANCH := $(subst heads/,,$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null))
-
-REPONAME := $(shell echo $(REPO) | tr '[:upper:]' '[:lower:]')
 BIN_NAME := traefik
 TRAEFIK_IMAGE := $(if $(REPONAME),$(REPONAME),"traefik/traefik")
 CODENAME ?= cheddar
@@ -156,20 +153,16 @@ lint:
 
 .PHONY: validate-files
 #? validate-files: Validate code and docs
-validate-files: lint
+validate-files:
 	$(foreach exec,$(LINT_EXECUTABLES),\
             $(if $(shell which $(exec)),,$(error "No $(exec) in PATH")))
+	$(CURDIR)/script/validate-vendor.sh
 	$(CURDIR)/script/validate-misspell.sh
 	$(CURDIR)/script/validate-shell-script.sh
 
 .PHONY: validate
 #? validate: Validate code, docs, and vendor
-validate: lint
-	$(foreach exec,$(EXECUTABLES),\
-            $(if $(shell which $(exec)),,$(error "No $(exec) in PATH")))
-	$(CURDIR)/script/validate-vendor.sh
-	$(CURDIR)/script/validate-misspell.sh
-	$(CURDIR)/script/validate-shell-script.sh
+validate: lint validate-files
 
 # Target for building images for multiple architectures.
 .PHONY: multi-arch-image-%
