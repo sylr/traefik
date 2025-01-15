@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	stdlog "log"
+	"maps"
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -25,6 +27,7 @@ import (
 	"github.com/traefik/traefik/v3/cmd"
 	"github.com/traefik/traefik/v3/cmd/healthcheck"
 	cmdVersion "github.com/traefik/traefik/v3/cmd/version"
+	_ "github.com/traefik/traefik/v3/init"
 	tcli "github.com/traefik/traefik/v3/pkg/cli"
 	"github.com/traefik/traefik/v3/pkg/collector"
 	"github.com/traefik/traefik/v3/pkg/config/dynamic"
@@ -37,6 +40,8 @@ import (
 	"github.com/traefik/traefik/v3/pkg/provider/aggregator"
 	"github.com/traefik/traefik/v3/pkg/provider/tailscale"
 	"github.com/traefik/traefik/v3/pkg/provider/traefik"
+	"github.com/traefik/traefik/v3/pkg/proxy"
+	"github.com/traefik/traefik/v3/pkg/proxy/httputil"
 	"github.com/traefik/traefik/v3/pkg/safe"
 	"github.com/traefik/traefik/v3/pkg/server"
 	"github.com/traefik/traefik/v3/pkg/server/middleware"
@@ -46,7 +51,6 @@ import (
 	"github.com/traefik/traefik/v3/pkg/tracing"
 	"github.com/traefik/traefik/v3/pkg/types"
 	"github.com/traefik/traefik/v3/pkg/version"
-	"golang.org/x/exp/maps"
 )
 
 func main() {
@@ -88,7 +92,9 @@ Complete documentation is available at https://traefik.io`,
 }
 
 func runCmd(staticConfiguration *static.Configuration) error {
-	setupLogger(staticConfiguration)
+	if err := setupLogger(staticConfiguration); err != nil {
+		return fmt.Errorf("setting up logger: %w", err)
+	}
 
 	http.DefaultTransport.(*http.Transport).Proxy = http.ProxyFromEnvironment
 
@@ -187,11 +193,11 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 		return nil, err
 	}
 
-	acmeProviders := initACMEProvider(staticConfiguration, &providerAggregator, tlsManager, httpChallengeProvider, tlsChallengeProvider)
+	acmeProviders := initACMEProvider(staticConfiguration, providerAggregator, tlsManager, httpChallengeProvider, tlsChallengeProvider)
 
 	// Tailscale
 
-	tsProviders := initTailscaleProviders(staticConfiguration, &providerAggregator)
+	tsProviders := initTailscaleProviders(staticConfiguration, providerAggregator)
 
 	// Observability
 
@@ -228,14 +234,17 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 	pluginLogger := log.Ctx(ctx).With().Logger()
 	hasPlugins := staticConfiguration.Experimental != nil && (staticConfiguration.Experimental.Plugins != nil || staticConfiguration.Experimental.LocalPlugins != nil)
 	if hasPlugins {
-		pluginsList := maps.Keys(staticConfiguration.Experimental.Plugins)
-		pluginsList = append(pluginsList, maps.Keys(staticConfiguration.Experimental.LocalPlugins)...)
+		pluginsList := slices.Collect(maps.Keys(staticConfiguration.Experimental.Plugins))
+		pluginsList = append(pluginsList, slices.Collect(maps.Keys(staticConfiguration.Experimental.LocalPlugins))...)
 
 		pluginLogger = pluginLogger.With().Strs("plugins", pluginsList).Logger()
 		pluginLogger.Info().Msg("Loading plugins...")
 	}
 
 	pluginBuilder, err := createPluginBuilder(staticConfiguration)
+	if err != nil && staticConfiguration.Experimental != nil && staticConfiguration.Experimental.AbortOnPluginFailure {
+		return nil, fmt.Errorf("plugin: failed to create plugin builder: %w", err)
+	}
 	if err != nil {
 		pluginLogger.Err(err).Msg("Plugins are disabled because an error has occurred.")
 	} else if hasPlugins {
@@ -281,10 +290,16 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 		log.Info().Msg("Successfully obtained SPIFFE SVID.")
 	}
 
-	roundTripperManager := service.NewRoundTripperManager(spiffeX509Source)
+	transportManager := service.NewTransportManager(spiffeX509Source)
+
+	var proxyBuilder service.ProxyBuilder = httputil.NewProxyBuilder(transportManager, semConvMetricRegistry)
+	if staticConfiguration.Experimental != nil && staticConfiguration.Experimental.FastProxy != nil {
+		proxyBuilder = proxy.NewSmartBuilder(transportManager, proxyBuilder, *staticConfiguration.Experimental.FastProxy)
+	}
+
 	dialerManager := tcp.NewDialerManager(spiffeX509Source)
 	acmeHTTPHandler := getHTTPChallengeHandler(acmeProviders, httpChallengeProvider)
-	managerFactory := service.NewManagerFactory(*staticConfiguration, routinesPool, observabilityMgr, roundTripperManager, acmeHTTPHandler)
+	managerFactory := service.NewManagerFactory(*staticConfiguration, routinesPool, observabilityMgr, transportManager, proxyBuilder, acmeHTTPHandler)
 
 	// Router factory
 
@@ -318,7 +333,8 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 
 	// Server Transports
 	watcher.AddListener(func(conf dynamic.Configuration) {
-		roundTripperManager.Update(conf.HTTP.ServersTransports)
+		transportManager.Update(conf.HTTP.ServersTransports)
+		proxyBuilder.Update(conf.HTTP.ServersTransports)
 		dialerManager.Update(conf.TCP.ServersTransports)
 	})
 

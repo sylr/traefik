@@ -625,23 +625,24 @@ func createHTTPServer(ctx context.Context, ln net.Listener, configuration *stati
 
 	handler = contenttype.DisableAutoDetection(handler)
 
+	debugConnection := os.Getenv(debugConnectionEnv) != ""
+	if debugConnection || (configuration.Transport != nil && (configuration.Transport.KeepAliveMaxTime > 0 || configuration.Transport.KeepAliveMaxRequests > 0)) {
+		handler = newKeepAliveMiddleware(handler, configuration.Transport.KeepAliveMaxRequests, configuration.Transport.KeepAliveMaxTime)
+	}
+
 	if withH2c {
 		handler = h2c.NewHandler(handler, &http2.Server{
 			MaxConcurrentStreams: uint32(configuration.HTTP2.MaxConcurrentStreams),
 		})
 	}
 
-	debugConnection := os.Getenv(debugConnectionEnv) != ""
-	if debugConnection || (configuration.Transport != nil && (configuration.Transport.KeepAliveMaxTime > 0 || configuration.Transport.KeepAliveMaxRequests > 0)) {
-		handler = newKeepAliveMiddleware(handler, configuration.Transport.KeepAliveMaxRequests, configuration.Transport.KeepAliveMaxTime)
-	}
-
 	serverHTTP := &http.Server{
-		Handler:      handler,
-		ErrorLog:     stdlog.New(logs.NoLevel(log.Logger, zerolog.DebugLevel), "", 0),
-		ReadTimeout:  time.Duration(configuration.Transport.RespondingTimeouts.ReadTimeout),
-		WriteTimeout: time.Duration(configuration.Transport.RespondingTimeouts.WriteTimeout),
-		IdleTimeout:  time.Duration(configuration.Transport.RespondingTimeouts.IdleTimeout),
+		Handler:        handler,
+		ErrorLog:       stdlog.New(logs.NoLevel(log.Logger, zerolog.DebugLevel), "", 0),
+		ReadTimeout:    time.Duration(configuration.Transport.RespondingTimeouts.ReadTimeout),
+		WriteTimeout:   time.Duration(configuration.Transport.RespondingTimeouts.WriteTimeout),
+		IdleTimeout:    time.Duration(configuration.Transport.RespondingTimeouts.IdleTimeout),
+		MaxHeaderBytes: configuration.HTTP.MaxHeaderBytes,
 	}
 	if debugConnection || (configuration.Transport != nil && (configuration.Transport.KeepAliveMaxTime > 0 || configuration.Transport.KeepAliveMaxRequests > 0)) {
 		serverHTTP.ConnContext = func(ctx context.Context, c net.Conn) context.Context {

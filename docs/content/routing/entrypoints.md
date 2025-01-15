@@ -254,8 +254,7 @@ entryPoints:
 
 ```toml tab="File (TOML)"
 [entryPoints.foo]
-  [entryPoints.foo.allowACMEByPass]
-    allowACMEByPass = true
+  allowACMEByPass = true
 ```
 
 ```bash tab="CLI"
@@ -579,7 +578,7 @@ Setting them has no effect for UDP entryPoints.
     If zero, no timeout exists.  
     Can be provided in a format supported by [time.ParseDuration](https://golang.org/pkg/time/#ParseDuration) or as raw values (digits).
     If no units are provided, the value is parsed assuming seconds.
-    We strongly suggest to adapt this value accordingly to the your needs.
+    We strongly suggest adapting this value accordingly to your needs.
 
     ```yaml tab="File (YAML)"
     ## Static configuration
@@ -1237,8 +1236,6 @@ entryPoints:
 --entryPoints.foo.udp.timeout=10s
 ```
 
-{!traefik-for-business-applications.md!}
-
 ## Systemd Socket Activation
 
 Traefik supports [systemd socket activation](https://www.freedesktop.org/software/systemd/man/latest/systemd-socket-activate.html).
@@ -1260,3 +1257,105 @@ systemd-socket-activate -l 80 -l 443 --fdname web:websecure  ./traefik --entrypo
 !!! warning "Docker Support"
 
     Socket activation is not supported by Docker but works with Podman containers.
+
+## Observability Options
+
+This section is dedicated to options to control observability for an EntryPoint.
+
+!!! info "Note that you must first enable access-logs, tracing, and/or metrics."
+
+!!! warning "AddInternals option"
+
+    By default, and for any type of signals (access-logs, metrics and tracing),
+    Traefik disables observability for internal resources.
+    The observability options described below cannot interfere with the `AddInternals` ones,
+    and will be ignored.
+
+    For instance, if a router exposes the `api@internal` service and `metrics.AddInternals` is false,
+    it will never produces metrics, even if the EntryPoint observability configuration enables metrics.
+
+### AccessLogs
+
+_Optional, Default=true_
+
+AccessLogs defines whether a router attached to this EntryPoint produces access-logs by default.
+Nonetheless, a router defining its own observability configuration will opt-out from this default.
+
+```yaml tab="File (YAML)"
+entryPoints:
+  foo:
+    address: ':8000/udp'
+    observability:
+      accessLogs: false
+```
+
+```toml tab="File (TOML)"
+[entryPoints.foo]
+  address = ":8000/udp"
+
+    [entryPoints.foo.observability]
+      accessLogs = false
+```
+
+```bash tab="CLI"
+--entryPoints.foo.address=:8000/udp
+--entryPoints.foo.observability.accessLogs=false
+```
+
+### Metrics
+
+_Optional, Default=true_
+
+Metrics defines whether a router attached to this EntryPoint produces metrics by default.
+Nonetheless, a router defining its own observability configuration will opt-out from this default.
+
+```yaml tab="File (YAML)"
+entryPoints:
+  foo:
+    address: ':8000/udp'
+    observability:
+      metrics: false
+```
+
+```toml tab="File (TOML)"
+[entryPoints.foo]
+  address = ":8000/udp"
+
+    [entryPoints.foo.observability]
+      metrics = false
+```
+
+```bash tab="CLI"
+--entryPoints.foo.address=:8000/udp
+--entryPoints.foo.observability.metrics=false
+```
+
+### Tracing
+
+_Optional, Default=true_
+
+Tracing defines whether a router attached to this EntryPoint produces traces by default.
+Nonetheless, a router defining its own observability configuration will opt-out from this default.
+
+```yaml tab="File (YAML)"
+entryPoints:
+  foo:
+    address: ':8000/udp'
+    observability:
+      tracing: false
+```
+
+```toml tab="File (TOML)"
+[entryPoints.foo]
+  address = ":8000/udp"
+
+    [entryPoints.foo.observability]
+      tracing = false
+```
+
+```bash tab="CLI"
+--entryPoints.foo.address=:8000/udp
+--entryPoints.foo.observability.tracing=false
+```
+
+{!traefik-for-business-applications.md!}
