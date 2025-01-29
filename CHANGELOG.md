@@ -1,3 +1,46 @@
+## [v2.11.19](https://github.com/traefik/traefik/tree/v2.11.19) (2025-01-29)
+[All Commits](https://github.com/traefik/traefik/compare/v2.11.18...v2.11.19)
+
+**Bug fixes:**
+- **[middleware]** Changing log message when client cert is not available to debug ([#11453](https://github.com/traefik/traefik/pull/11453) by [Nelwhix](https://github.com/Nelwhix))
+- **[service]** Do not create a logger instance for each proxy ([#11487](https://github.com/traefik/traefik/pull/11487) by [kevinpollet](https://github.com/kevinpollet))
+- **[webui]** Fix auto refresh not clearing on component unmount ([#11477](https://github.com/traefik/traefik/pull/11477) by [DoubleREW](https://github.com/DoubleREW))
+
+**Documentation:**
+- Remove awesome.traefik.io reference in documentation section ([#11435](https://github.com/traefik/traefik/pull/11435) by [kevinpollet](https://github.com/kevinpollet))
+
+## [v2.11.18](https://github.com/traefik/traefik/tree/v2.11.18) (2025-01-07)
+[All Commits](https://github.com/traefik/traefik/compare/v2.11.17...v2.11.18)
+
+**Bug fixes:**
+- **[websocket,server]** Disable http2 connect setting for websocket by default ([#11412](https://github.com/traefik/traefik/pull/11412) by [rtribotte](https://github.com/rtribotte))
+
+## [v2.11.17](https://github.com/traefik/traefik/tree/v2.11.17) (2025-01-06)
+[All Commits](https://github.com/traefik/traefik/compare/v2.11.16...v2.11.17)
+
+**Bug fixes:**
+- **[acme]** Update go-acme/lego to v4.21.0 ([#11368](https://github.com/traefik/traefik/pull/11368) by [ldez](https://github.com/ldez))
+- **[middleware]** Fix typo in basicauth note ([#11397](https://github.com/traefik/traefik/pull/11397) by [tieje](https://github.com/tieje))
+- **[service]** Configure ErrorLog in httputil.ReverseProxy ([#11344](https://github.com/traefik/traefik/pull/11344) by [peacewalker122](https://github.com/peacewalker122))
+- Bump golang.org/x/net to v0.33.0 ([#11365](https://github.com/traefik/traefik/pull/11365) by [kevinpollet](https://github.com/kevinpollet))
+
+**Documentation:**
+- **[acme]** Fix allowACMEByPass TOML example ([#11370](https://github.com/traefik/traefik/pull/11370) by [hannesbraun](https://github.com/hannesbraun))
+- **[k8s/crd]** Update copyright for 2025 ([#11383](https://github.com/traefik/traefik/pull/11383) by [kevinpollet](https://github.com/kevinpollet))
+
+## [v2.11.16](https://github.com/traefik/traefik/tree/v2.11.16) (2024-12-16)
+[All Commits](https://github.com/traefik/traefik/compare/v2.11.15...v2.11.16)
+
+**Bug fixes:**
+- **[server]** Update golang.org/x dependencies ([#11336](https://github.com/traefik/traefik/pull/11336) by [rtribotte](https://github.com/rtribotte))
+
+## [v2.11.15](https://github.com/traefik/traefik/tree/v2.11.15) (2024-12-06)
+[All Commits](https://github.com/traefik/traefik/compare/v2.11.14...v2.11.15)
+
+**Bug fixes:**
+- **[acme]** Update go-acme/lego to v4.20.4 ([#11295](https://github.com/traefik/traefik/pull/11295) by [ldez](https://github.com/ldez))
+- **[http3]** Update github.com/quic-go/quic-go to v0.48.2 ([#11320](https://github.com/traefik/traefik/pull/11320) by [kevinpollet](https://github.com/kevinpollet))
+
 ## [v2.11.14](https://github.com/traefik/traefik/tree/v2.11.14) (2024-11-20)
 [All Commits](https://github.com/traefik/traefik/compare/v2.11.13...v2.11.14)
 

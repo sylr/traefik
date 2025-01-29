@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	stdlog "log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	ptypes "github.com/traefik/paerser/types"
 	"github.com/traefik/traefik/v2/pkg/config/dynamic"
 	"github.com/traefik/traefik/v2/pkg/log"
@@ -23,6 +25,12 @@ const StatusClientClosedRequest = 499
 
 // StatusClientClosedRequestText non-standard HTTP status for client disconnection.
 const StatusClientClosedRequestText = "Client Closed Request"
+
+// errorLogger is a logger instance used to log proxy errors.
+// This logger is a shared instance as having one instance by proxy introduces a memory and go routine leak.
+// The writer go routine is never stopped as the finalizer is never called.
+// See https://github.com/sirupsen/logrus/blob/d1e6332644483cfee14de11099f03645561d55f8/writer.go#L57).
+var errorLogger = stdlog.New(log.WithoutContext().WriterLevel(logrus.DebugLevel), "", 0)
 
 func buildProxy(passHostHeader *bool, responseForwarding *dynamic.ResponseForwarding, roundTripper http.RoundTripper, bufferPool httputil.BufferPool) (http.Handler, error) {
 	var flushInterval ptypes.Duration
@@ -81,6 +89,7 @@ func buildProxy(passHostHeader *bool, responseForwarding *dynamic.ResponseForwar
 		Transport:     roundTripper,
 		FlushInterval: time.Duration(flushInterval),
 		BufferPool:    bufferPool,
+		ErrorLog:      errorLogger,
 		ErrorHandler: func(w http.ResponseWriter, request *http.Request, err error) {
 			statusCode := http.StatusInternalServerError
 
