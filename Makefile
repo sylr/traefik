@@ -19,6 +19,7 @@ DATE := $(shell date -u '+%Y-%m-%d_%I:%M:%S%p')
 # Default build target
 GOOS   ?= $(shell $(GO) env GOOS)
 GOARCH ?= $(shell $(GO) env GOARCH)
+GOGC   ?=
 
 LINT_EXECUTABLES = misspell shellcheck
 
@@ -89,7 +90,7 @@ generate:
 #? binary: Build the binary
 binary: generate-webui dist
 	@echo SHA: $(VERSION) $(CODENAME) $(DATE)
-	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM:v%=%) GOARM64=$(GOARM64) GOAMD64=$(GOAMD64) $(GO) build ${FLAGS[*]} -ldflags "-s -w \
+	CGO_ENABLED=0 GOGC=${GOGC} GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM:v%=%) GOARM64=$(GOARM64) GOAMD64=$(GOAMD64) $(GO) build ${FLAGS[*]} -ldflags "-s -w \
     -X github.com/traefik/traefik/v2/pkg/version.Version=$(VERSION) \
     -X github.com/traefik/traefik/v2/pkg/version.Codename=$(CODENAME) \
     -X github.com/traefik/traefik/v2/pkg/version.BuildDate=$(DATE)" \
