@@ -15,7 +15,7 @@ RUN yarn build
 
 # -- GO BUILD ------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS gobuild
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS gobuild
 
 WORKDIR /go/src/github.com/traefik/traefik
 
