@@ -1,6 +1,6 @@
 # -- WEBUI ---------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM node:20.15 AS webui
+FROM --platform=$BUILDPLATFORM node:20.19 AS webui
 
 WORKDIR /src/webui/
 
