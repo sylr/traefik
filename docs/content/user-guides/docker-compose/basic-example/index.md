@@ -23,15 +23,13 @@ Create a `docker-compose.yml` file with the following content:
     You can use a [pre-existing network](https://docs.docker.com/compose/networking/#use-a-pre-existing-network "Link to Docker Compose networking docs") too.
 
     ```yaml
-    version: "3.3"
-
     networks:
       traefiknet: {}
 
     services:
 
       traefik:
-        image: "traefik:v3.3"
+        image: "traefik:v3.4"
         ...
         networks:
           - traefiknet
@@ -46,7 +44,7 @@ Create a `docker-compose.yml` file with the following content:
 
 Replace `whoami.localhost` by your **own domain** within the `traefik.http.routers.whoami.rule` label of the `whoami` service.
 
-Now run `docker-compose up -d` within the folder where you created the previous file.  
+Now run `docker compose up -d` within the folder where you created the previous file.  
 This will start Docker Compose in background mode.
 
 !!! info "This can take a moment"

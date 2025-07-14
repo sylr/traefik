@@ -84,6 +84,7 @@ entryPoints:
               - foobar
               - foobar
       encodeQuerySemicolons: true
+      sanitizePath: true
       maxHeaderBytes: 42
     http2:
       maxConcurrentStreams: 42
@@ -546,6 +547,10 @@ certificatesResolvers:
       email: foobar
       caServer: foobar
       preferredChain: foobar
+      profile: foobar
+      emailAddresses:
+        - foobar
+        - foobar
       storage: foobar
       keyType: foobar
       eab:
@@ -578,6 +583,10 @@ certificatesResolvers:
       email: foobar
       caServer: foobar
       preferredChain: foobar
+      profile: foobar
+      emailAddresses:
+        - foobar
+        - foobar
       storage: foobar
       keyType: foobar
       eab:

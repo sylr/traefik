@@ -53,6 +53,15 @@ func mergeConfiguration(configurations dynamic.Configurations, defaultEntryPoint
 					router.EntryPoints = defaultEntryPoints
 				}
 
+				// The `ruleSyntax` option is deprecated.
+				// We exclude the "default" value to avoid logging it,
+				// as it is the value used for internal models and computed rules.
+				if router.RuleSyntax != "" && router.RuleSyntax != "default" {
+					log.Warn().
+						Str(logs.RouterName, routerName).
+						Msg("Router's `ruleSyntax` option is deprecated, please remove any usage of this option.")
+				}
+
 				conf.HTTP.Routers[provider.MakeQualifiedName(pvd, routerName)] = router
 			}
 			for middlewareName, middleware := range configuration.HTTP.Middlewares {
@@ -191,12 +200,12 @@ func applyModel(cfg dynamic.Configuration) dynamic.Configuration {
 						cp.Observability.AccessLogs = m.Observability.AccessLogs
 					}
 
-					if cp.Observability.Tracing == nil {
-						cp.Observability.Tracing = m.Observability.Tracing
-					}
-
 					if cp.Observability.Metrics == nil {
 						cp.Observability.Metrics = m.Observability.Metrics
+					}
+
+					if cp.Observability.Tracing == nil {
+						cp.Observability.Tracing = m.Observability.Tracing
 					}
 
 					rtName := name
@@ -214,6 +223,9 @@ func applyModel(cfg dynamic.Configuration) dynamic.Configuration {
 
 		cfg.HTTP.Routers = rts
 	}
+
+	// Apply default observability model to HTTP routers.
+	applyDefaultObservabilityModel(cfg)
 
 	if cfg.TCP == nil || len(cfg.TCP.Models) == 0 {
 		return cfg
@@ -238,3 +250,38 @@ func applyModel(cfg dynamic.Configuration) dynamic.Configuration {
 
 	return cfg
 }
+
+// applyDefaultObservabilityModel applies the default observability model to the configuration.
+// This function is used to ensure that the observability configuration is set for all routers,
+// and make sure it is serialized and available in the API.
+// We could have introduced a "default" model, but it would have been more complex to manage for now.
+// This could be generalized in the future.
+func applyDefaultObservabilityModel(cfg dynamic.Configuration) {
+	if cfg.HTTP != nil {
+		for _, router := range cfg.HTTP.Routers {
+			if router.Observability == nil {
+				router.Observability = &dynamic.RouterObservabilityConfig{
+					AccessLogs: pointer(true),
+					Metrics:    pointer(true),
+					Tracing:    pointer(true),
+				}
+
+				continue
+			}
+
+			if router.Observability.AccessLogs == nil {
+				router.Observability.AccessLogs = pointer(true)
+			}
+
+			if router.Observability.Tracing == nil {
+				router.Observability.Tracing = pointer(true)
+			}
+
+			if router.Observability.Metrics == nil {
+				router.Observability.Metrics = pointer(true)
+			}
+		}
+	}
+}
+
+func pointer[T any](v T) *T { return &v }

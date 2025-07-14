@@ -55,7 +55,6 @@ With Docker Swarm, Traefik can leverage labels attached to a service to generate
     then that service is automatically assigned to the router.
 
     ```yaml
-    version: "3"
     services:
       my-container:
         deploy:
@@ -74,7 +73,6 @@ With Docker Swarm, Traefik can leverage labels attached to a service to generate
     Forward requests for `http://example.com` to `http://<private IP of container>:12345`:
 
     ```yaml
-    version: "3"
     services:
       my-container:
         # ...
@@ -100,7 +98,6 @@ With Docker Swarm, Traefik can leverage labels attached to a service to generate
     In this example, requests are forwarded for `http://example-a.com` to `http://<private IP of container>:8000` in addition to `http://example-b.com` forwarding to `http://<private IP of container>:9000`:
 
     ```yaml
-    version: "3"
     services:
       my-container:
         # ...
@@ -297,6 +294,15 @@ you'd add the label `traefik.http.services.<name-of-your-choice>.loadbalancer.pa
     - "traefik.http.services.myservice.loadbalancer.server.scheme=http"
     ```
 
+??? info "`traefik.http.services.<service_name>.loadbalancer.server.url`"
+
+    Defines the service URL.
+    This option cannot be used in combination with `port` or `scheme` definition.
+
+    ```yaml
+    - "traefik.http.services.myservice.loadbalancer.server.url=http://foobar:8080"
+    ```
+
 ??? info "`traefik.http.services.<service_name>.loadbalancer.serverstransport`"
 
     Allows to reference a ServersTransport resource that is defined either with the File provider or the Kubernetes CRD one.
@@ -442,12 +448,28 @@ you'd add the label `traefik.http.services.<name-of-your-choice>.loadbalancer.pa
     - "traefik.http.services.myservice.loadbalancer.sticky.cookie.samesite=none"
     ```
 
+??? info "`traefik.http.services.<service_name>.loadbalancer.sticky.cookie.domain`"
+
+    See [sticky sessions](../services/index.md#sticky-sessions) for more information.
+
+    ```yaml
+    - "traefik.http.services.myservice.loadbalancer.sticky.cookie.domain=foo.com"
+    ```
+
 ??? info "`traefik.http.services.<service_name>.loadbalancer.responseforwarding.flushinterval`"
 
     See [response forwarding](../services/index.md#response-forwarding) for more information.
 
     ```yaml
     - "traefik.http.services.myservice.loadbalancer.responseforwarding.flushinterval=10"
+    ```
+
+??? info "`traefik.http.services.<service_name>.loadbalancer.strategy`"
+
+    See [load balancing strategy](../services/index.md#load-balancing-strategy) for more information.
+
+    ```yaml
+    - "traefik.http.services.myservice.loadbalancer.strategy=p2c"
     ```
 
 ### Middleware

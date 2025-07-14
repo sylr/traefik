@@ -139,6 +139,47 @@ The `url` option point to a specific instance.
           url = "http://private-ip-server-1/"
     ```
 
+The `preservePath` option allows to preserve the URL path.
+
+!!! info "Health Check"
+
+    When a [health check](#health-check) is configured for the server, the path is not preserved.
+
+??? example "A Service with One Server and PreservePath -- Using the [File Provider](../../providers/file.md)"
+
+    ```yaml tab="YAML"
+    ## Dynamic configuration
+    http:
+      services:
+        my-service:
+          loadBalancer:
+            servers:
+              - url: "http://private-ip-server-1/base"
+                preservePath: true
+    ```
+
+    ```toml tab="TOML"
+    ## Dynamic configuration
+    [http.services]
+      [http.services.my-service.loadBalancer]
+        [[http.services.my-service.loadBalancer.servers]]
+          url = "http://private-ip-server-1/base"
+          preservePath = true
+    ```
+
+#### Load Balancing Strategy
+
+The `strategy` option allows to choose the load balancing algorithm.
+
+Two load balancing algorithms are supported:
+
+- Weighed round-robin (wrr)
+- Power of two choices (p2c)
+
+##### WRR
+
+Weighed round-robin is the default strategy (and does not need to be specified).
+
 The `weight` option allows for weighted load balancing on the servers.
 
 ??? example "A Service with Two Servers with Weight -- Using the [File Provider](../../providers/file.md)"
@@ -169,13 +210,11 @@ The `weight` option allows for weighted load balancing on the servers.
           weight = 1
     ```
 
-The `preservePath` option allows to preserve the URL path.
+##### P2C
 
-!!! info "Health Check"
+Power of two choices algorithm is a load balancing strategy that selects two servers at random and chooses the one with the least number of active requests.
 
-    When a [health check](#health-check) is configured for the server, the path is not preserved.
-
-??? example "A Service with One Server and PreservePath -- Using the [File Provider](../../providers/file.md)"
+??? example "P2C Load Balancing -- Using the [File Provider](../../providers/file.md)"
 
     ```yaml tab="YAML"
     ## Dynamic configuration
@@ -183,45 +222,24 @@ The `preservePath` option allows to preserve the URL path.
       services:
         my-service:
           loadBalancer:
-            servers:
-              - url: "http://private-ip-server-1/base"
-                preservePath: true
-    ```
-
-    ```toml tab="TOML"
-    ## Dynamic configuration
-    [http.services]
-      [http.services.my-service.loadBalancer]
-        [[http.services.my-service.loadBalancer.servers]]
-          url = "http://private-ip-server-1/base"
-          preservePath = true
-    ```
-
-#### Load-balancing
-
-For now, only round robin load balancing is supported:
-
-??? example "Load Balancing -- Using the [File Provider](../../providers/file.md)"
-
-    ```yaml tab="YAML"
-    ## Dynamic configuration
-    http:
-      services:
-        my-service:
-          loadBalancer:
+            strategy: "p2c"
             servers:
             - url: "http://private-ip-server-1/"
             - url: "http://private-ip-server-2/"
+            - url: "http://private-ip-server-3/"
     ```
 
     ```toml tab="TOML"
     ## Dynamic configuration
     [http.services]
       [http.services.my-service.loadBalancer]
+        strategy = "p2c"
         [[http.services.my-service.loadBalancer.servers]]
           url = "http://private-ip-server-1/"
         [[http.services.my-service.loadBalancer.servers]]
-          url = "http://private-ip-server-2/"
+          url = "http://private-ip-server-2/"       
+        [[http.services.my-service.loadBalancer.servers]]
+          url = "http://private-ip-server-3/"
     ```
 
 #### Sticky sessions
@@ -255,6 +273,12 @@ On subsequent requests, to keep the session alive with the same server, the clie
 
     `SameSite` can be `none`, `lax`, `strict` or empty.
 
+!!! info "Domain"
+
+    The Domain attribute of a cookie specifies the domain for which the cookie is valid. 
+    
+    By setting the Domain attribute, the cookie can be shared across subdomains (for example, a cookie set for example.com would be accessible to www.example.com, api.example.com, etc.). This is particularly useful in cases where sticky sessions span multiple subdomains, ensuring that the session is maintained even when the client interacts with different parts of the infrastructure.
+
 ??? example "Adding Stickiness -- Using the [File Provider](../../providers/file.md)"
 
     ```yaml tab="YAML"
@@ -286,6 +310,7 @@ On subsequent requests, to keep the session alive with the same server, the clie
               cookie:
                 name: my_sticky_cookie_name
                 secure: true
+                domain: mysite.site
                 httpOnly: true
     ```
 
@@ -297,6 +322,7 @@ On subsequent requests, to keep the session alive with the same server, the clie
           name = "my_sticky_cookie_name"
           secure = true
           httpOnly = true
+          domain = "mysite.site"
           sameSite = "none"
     ```
 
@@ -1233,6 +1259,10 @@ Please note that by default the whole request is buffered in memory while it is 
 See the maxBodySize option in the example below for how to modify this behaviour.
 You can also omit the request body by setting the mirrorBody option to `false`.
 
+!!! warning "Default behavior of `percent`"
+
+    When configuring a `mirror` service, if the `percent` field is not set, it defaults to `0`, meaning **no traffic will be sent to the mirror**.
+
 !!! info "Supported Providers"
 
     This strategy can be defined currently with the [File](../../providers/file.md) or [IngressRoute](../../providers/kubernetes-crd.md) providers.
@@ -1253,6 +1283,8 @@ http:
         maxBodySize: 1024
         mirrors:
         - name: appv2
+          # Percent defines the percentage of requests that should be mirrored.
+          # Default value is 0, which means no traffic will be sent to the mirror.
           percent: 10
 
     appv1:

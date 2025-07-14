@@ -1101,6 +1101,56 @@ entryPoints:
 | false                 | foo=bar&baz=bar;foo | foo=bar&baz=bar&foo     |
 | true                  | foo=bar&baz=bar;foo | foo=bar&baz=bar%3Bfoo   |
 
+### SanitizePath
+
+_Optional, Default=true_
+
+The `sanitizePath` option defines whether to enable the request path sanitization.
+When disabled, the incoming request path is passed to the backend as is.
+This can be useful when dealing with legacy clients that are not url-encoding data in the request path.
+For example, as base64 uses the “/” character internally,
+if it's not url encoded,
+it can lead to unsafe routing when the `sanitizePath` option is set to `false`.
+
+!!! warning "Security"
+
+    Setting the sanitizePath option to false is not safe.
+    Ensure every request is properly url encoded instead.
+
+```yaml tab="File (YAML)"
+entryPoints:
+  websecure:
+    address: ':443'
+    http:
+      sanitizePath: false
+```
+
+```toml tab="File (TOML)"
+[entryPoints.websecure]
+  address = ":443"
+
+  [entryPoints.websecure.http]
+    sanitizePath = false
+```
+
+```bash tab="CLI"
+--entryPoints.websecure.address=:443
+--entryPoints.websecure.http.sanitizePath=false
+```
+
+#### Examples
+
+| SanitizePath | Request Path    | Resulting Request Path |
+|--------------|-----------------|------------------------|
+| false        | /./foo/bar      | /./foo/bar             |
+| true         | /./foo/bar      | /foo/bar               |
+| false        | /foo/../bar     | /foo/../bar            |
+| true         | /foo/../bar     | /bar                   |
+| false        | /foo/bar//      | /foo/bar//             |
+| true         | /foo/bar//      | /foo/bar/              |
+| false        | /./foo/../bar// | /./foo/../bar//        |
+| true         | /./foo/../bar// | /bar/                  |
+
 ### Middlewares
 
 The list of middlewares that are prepended by default to the list of middlewares of each router associated to the named entry point.
@@ -1240,7 +1290,7 @@ entryPoints:
 
 Traefik supports [systemd socket activation](https://www.freedesktop.org/software/systemd/man/latest/systemd-socket-activate.html).
 
-When a socket activation file descriptor name matches an EntryPoint name, the corresponding file descriptor will be used as the TCP listener for the matching EntryPoint.
+When a socket activation file descriptor name matches an EntryPoint name, the corresponding file descriptor will be used as the TCP/UDP listener for the matching EntryPoint.
 
 ```bash
 systemd-socket-activate -l 80 -l 443 --fdname web:websecure  ./traefik --entrypoints.web --entrypoints.websecure
@@ -1248,15 +1298,15 @@ systemd-socket-activate -l 80 -l 443 --fdname web:websecure  ./traefik --entrypo
 
 !!! warning "EntryPoint Address"
 
-    When a socket activation file descriptor name matches an EntryPoint name its address configuration is ignored.     
-
-!!! warning "TCP Only"
-
-    Socket activation is not yet supported with UDP entryPoints.
+    When a socket activation file descriptor name matches an EntryPoint name its address configuration is ignored. For support UDP routing, address must have /udp suffix (--entrypoints.my-udp-entrypoint.address=/udp)
 
 !!! warning "Docker Support"
 
     Socket activation is not supported by Docker but works with Podman containers.
+
+!!! warning "Multiple listeners in socket file"
+
+    Each systemd socket file must contain only one Listen directive, except in the case of HTTP/3, where the file must include both ListenStream and ListenDatagram directives. To set up TCP and UDP listeners on the same port, use multiple socket files with different entrypoints names.
 
 ## Observability Options
 

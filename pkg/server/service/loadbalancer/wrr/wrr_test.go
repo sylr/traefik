@@ -10,6 +10,10 @@ import (
 	"github.com/traefik/traefik/v3/pkg/config/dynamic"
 )
 
+type key string
+
+const serviceName key = "serviceName"
+
 func pointer[T any](v T) *T { return &v }
 
 func TestBalancer(t *testing.T) {
@@ -61,10 +65,6 @@ func TestBalancerOneServerZeroWeight(t *testing.T) {
 	assert.Equal(t, 3, recorder.save["first"])
 }
 
-type key string
-
-const serviceName key = "serviceName"
-
 func TestBalancerNoServiceUp(t *testing.T) {
 	balancer := New(nil, false)
 
@@ -76,8 +76,8 @@ func TestBalancerNoServiceUp(t *testing.T) {
 		rw.WriteHeader(http.StatusInternalServerError)
 	}), pointer(1), false)
 
-	balancer.SetStatus(context.WithValue(context.Background(), serviceName, "parent"), "first", false)
-	balancer.SetStatus(context.WithValue(context.Background(), serviceName, "parent"), "second", false)
+	balancer.SetStatus(context.WithValue(t.Context(), serviceName, "parent"), "first", false)
+	balancer.SetStatus(context.WithValue(t.Context(), serviceName, "parent"), "second", false)
 
 	recorder := httptest.NewRecorder()
 	balancer.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -96,7 +96,7 @@ func TestBalancerOneServerDown(t *testing.T) {
 	balancer.Add("second", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusInternalServerError)
 	}), pointer(1), false)
-	balancer.SetStatus(context.WithValue(context.Background(), serviceName, "parent"), "second", false)
+	balancer.SetStatus(context.WithValue(t.Context(), serviceName, "parent"), "second", false)
 
 	recorder := &responseRecorder{ResponseRecorder: httptest.NewRecorder(), save: map[string]int{}}
 	for range 3 {
@@ -118,7 +118,7 @@ func TestBalancerDownThenUp(t *testing.T) {
 		rw.Header().Set("server", "second")
 		rw.WriteHeader(http.StatusOK)
 	}), pointer(1), false)
-	balancer.SetStatus(context.WithValue(context.Background(), serviceName, "parent"), "second", false)
+	balancer.SetStatus(context.WithValue(t.Context(), serviceName, "parent"), "second", false)
 
 	recorder := &responseRecorder{ResponseRecorder: httptest.NewRecorder(), save: map[string]int{}}
 	for range 3 {
@@ -126,7 +126,7 @@ func TestBalancerDownThenUp(t *testing.T) {
 	}
 	assert.Equal(t, 3, recorder.save["first"])
 
-	balancer.SetStatus(context.WithValue(context.Background(), serviceName, "parent"), "second", true)
+	balancer.SetStatus(context.WithValue(t.Context(), serviceName, "parent"), "second", true)
 	recorder = &responseRecorder{ResponseRecorder: httptest.NewRecorder(), save: map[string]int{}}
 	for range 2 {
 		balancer.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -160,13 +160,13 @@ func TestBalancerPropagate(t *testing.T) {
 	topBalancer := New(nil, true)
 	topBalancer.Add("balancer1", balancer1, pointer(1), false)
 	_ = balancer1.RegisterStatusUpdater(func(up bool) {
-		topBalancer.SetStatus(context.WithValue(context.Background(), serviceName, "top"), "balancer1", up)
+		topBalancer.SetStatus(context.WithValue(t.Context(), serviceName, "top"), "balancer1", up)
 		// TODO(mpl): if test gets flaky, add channel or something here to signal that
 		// propagation is done, and wait on it before sending request.
 	})
 	topBalancer.Add("balancer2", balancer2, pointer(1), false)
 	_ = balancer2.RegisterStatusUpdater(func(up bool) {
-		topBalancer.SetStatus(context.WithValue(context.Background(), serviceName, "top"), "balancer2", up)
+		topBalancer.SetStatus(context.WithValue(t.Context(), serviceName, "top"), "balancer2", up)
 	})
 
 	recorder := &responseRecorder{ResponseRecorder: httptest.NewRecorder(), save: map[string]int{}}
@@ -181,7 +181,7 @@ func TestBalancerPropagate(t *testing.T) {
 	assert.Equal(t, wantStatus, recorder.status)
 
 	// fourth gets downed, but balancer2 still up since third is still up.
-	balancer2.SetStatus(context.WithValue(context.Background(), serviceName, "top"), "fourth", false)
+	balancer2.SetStatus(context.WithValue(t.Context(), serviceName, "top"), "fourth", false)
 	recorder = &responseRecorder{ResponseRecorder: httptest.NewRecorder(), save: map[string]int{}}
 	for range 8 {
 		topBalancer.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -195,7 +195,7 @@ func TestBalancerPropagate(t *testing.T) {
 
 	// third gets downed, and the propagation triggers balancer2 to be marked as
 	// down as well for topBalancer.
-	balancer2.SetStatus(context.WithValue(context.Background(), serviceName, "top"), "third", false)
+	balancer2.SetStatus(context.WithValue(t.Context(), serviceName, "top"), "third", false)
 	recorder = &responseRecorder{ResponseRecorder: httptest.NewRecorder(), save: map[string]int{}}
 	for range 8 {
 		topBalancer.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -239,6 +239,7 @@ func TestSticky(t *testing.T) {
 			Secure:   true,
 			HTTPOnly: true,
 			SameSite: "none",
+			Domain:   "foo.com",
 			MaxAge:   42,
 			Path:     func(v string) *string { return &v }("/foo"),
 		},
@@ -263,8 +264,8 @@ func TestSticky(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	for range 3 {
 		for _, cookie := range recorder.Result().Cookies() {
-			assert.NotContains(t, "test=first", cookie.Value)
-			assert.NotContains(t, "test=second", cookie.Value)
+			assert.NotContains(t, "first", cookie.Value)
+			assert.NotContains(t, "second", cookie.Value)
 			req.AddCookie(cookie)
 		}
 		recorder.ResponseRecorder = httptest.NewRecorder()
@@ -276,12 +277,13 @@ func TestSticky(t *testing.T) {
 	assert.Equal(t, 3, recorder.save["second"])
 	assert.True(t, recorder.cookies["test"].HttpOnly)
 	assert.True(t, recorder.cookies["test"].Secure)
+	assert.Equal(t, "foo.com", recorder.cookies["test"].Domain)
 	assert.Equal(t, http.SameSiteNoneMode, recorder.cookies["test"].SameSite)
 	assert.Equal(t, 42, recorder.cookies["test"].MaxAge)
 	assert.Equal(t, "/foo", recorder.cookies["test"].Path)
 }
 
-func TestSticky_FallBack(t *testing.T) {
+func TestSticky_Fallback(t *testing.T) {
 	balancer := New(&dynamic.Sticky{
 		Cookie: &dynamic.Cookie{Name: "test"},
 	}, false)
@@ -296,7 +298,7 @@ func TestSticky_FallBack(t *testing.T) {
 		rw.WriteHeader(http.StatusOK)
 	}), pointer(2), false)
 
-	recorder := &responseRecorder{ResponseRecorder: httptest.NewRecorder(), save: map[string]int{}}
+	recorder := &responseRecorder{ResponseRecorder: httptest.NewRecorder(), save: map[string]int{}, cookies: make(map[string]*http.Cookie)}
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{Name: "test", Value: "second"})
@@ -308,6 +310,44 @@ func TestSticky_FallBack(t *testing.T) {
 
 	assert.Equal(t, 0, recorder.save["first"])
 	assert.Equal(t, 3, recorder.save["second"])
+}
+
+// TestSticky_Fenced checks that fenced node receive traffic if their sticky cookie matches.
+func TestSticky_Fenced(t *testing.T) {
+	balancer := New(&dynamic.Sticky{Cookie: &dynamic.Cookie{Name: "test"}}, false)
+
+	balancer.Add("first", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.Header().Set("server", "first")
+		rw.WriteHeader(http.StatusOK)
+	}), pointer(1), false)
+
+	balancer.Add("second", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.Header().Set("server", "second")
+		rw.WriteHeader(http.StatusOK)
+	}), pointer(1), false)
+
+	balancer.Add("fenced", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.Header().Set("server", "fenced")
+		rw.WriteHeader(http.StatusOK)
+	}), pointer(1), true)
+
+	recorder := &responseRecorder{ResponseRecorder: httptest.NewRecorder(), save: map[string]int{}, cookies: make(map[string]*http.Cookie)}
+
+	stickyReq := httptest.NewRequest(http.MethodGet, "/", nil)
+	stickyReq.AddCookie(&http.Cookie{Name: "test", Value: "fenced"})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	for range 4 {
+		recorder.ResponseRecorder = httptest.NewRecorder()
+
+		balancer.ServeHTTP(recorder, stickyReq)
+		balancer.ServeHTTP(recorder, req)
+	}
+
+	assert.Equal(t, 4, recorder.save["fenced"])
+	assert.Equal(t, 2, recorder.save["first"])
+	assert.Equal(t, 2, recorder.save["second"])
 }
 
 // TestBalancerBias makes sure that the WRR algorithm spreads elements evenly right from the start,
@@ -352,42 +392,4 @@ func (r *responseRecorder) WriteHeader(statusCode int) {
 		r.cookies[cookie.Name] = cookie
 	}
 	r.ResponseRecorder.WriteHeader(statusCode)
-}
-
-// TestSticky_Fenced checks that fenced node receive traffic if their sticky cookie matches.
-func TestSticky_Fenced(t *testing.T) {
-	balancer := New(&dynamic.Sticky{Cookie: &dynamic.Cookie{Name: "test"}}, false)
-
-	balancer.Add("first", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		rw.Header().Set("server", "first")
-		rw.WriteHeader(http.StatusOK)
-	}), pointer(1), false)
-
-	balancer.Add("second", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		rw.Header().Set("server", "second")
-		rw.WriteHeader(http.StatusOK)
-	}), pointer(1), false)
-
-	balancer.Add("fenced", http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		rw.Header().Set("server", "fenced")
-		rw.WriteHeader(http.StatusOK)
-	}), pointer(1), true)
-
-	recorder := &responseRecorder{ResponseRecorder: httptest.NewRecorder(), save: map[string]int{}}
-
-	stickyReq := httptest.NewRequest(http.MethodGet, "/", nil)
-	stickyReq.AddCookie(&http.Cookie{Name: "test", Value: "fenced"})
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-
-	for range 4 {
-		recorder.ResponseRecorder = httptest.NewRecorder()
-
-		balancer.ServeHTTP(recorder, stickyReq)
-		balancer.ServeHTTP(recorder, req)
-	}
-
-	assert.Equal(t, 4, recorder.save["fenced"])
-	assert.Equal(t, 2, recorder.save["first"])
-	assert.Equal(t, 2, recorder.save["second"])
 }

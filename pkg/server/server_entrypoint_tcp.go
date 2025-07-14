@@ -34,8 +34,6 @@ import (
 	"github.com/traefik/traefik/v3/pkg/server/service"
 	"github.com/traefik/traefik/v3/pkg/tcp"
 	"github.com/traefik/traefik/v3/pkg/types"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 )
 
 type key string
@@ -48,14 +46,7 @@ const (
 var (
 	clientConnectionStates   = map[string]*connState{}
 	clientConnectionStatesMu = sync.RWMutex{}
-
-	socketActivationListeners map[string]net.Listener
 )
-
-func init() {
-	// Populates pre-defined socketActivationListeners by socket activation.
-	populateSocketActivationListeners()
-}
 
 type connState struct {
 	State            string
@@ -204,7 +195,7 @@ func NewTCPEntryPoint(ctx context.Context, name string, config *static.EntryPoin
 		return nil, fmt.Errorf("error preparing https server: %w", err)
 	}
 
-	h3Server, err := newHTTP3Server(ctx, config, httpsServer)
+	h3Server, err := newHTTP3Server(ctx, name, config, httpsServer)
 	if err != nil {
 		return nil, fmt.Errorf("error preparing http3 server: %w", err)
 	}
@@ -476,13 +467,14 @@ func buildListener(ctx context.Context, name string, config *static.EntryPoint) 
 	var err error
 
 	// if we have predefined listener from socket activation
-	if ln, ok := socketActivationListeners[name]; ok {
-		listener = ln
-	} else {
-		if len(socketActivationListeners) > 0 {
-			log.Warn().Str("name", name).Msg("Unable to find socket activation listener for entryPoint")
+	if socketActivation.isEnabled() {
+		listener, err = socketActivation.getListener(name)
+		if err != nil {
+			log.Ctx(ctx).Warn().Err(err).Str("name", name).Msg("Unable to use socket activation for entrypoint")
 		}
+	}
 
+	if listener == nil {
 		listenConfig := newListenConfig(config)
 		listener, err = listenConfig.Listen(ctx, "tcp", config.GetAddress())
 		if err != nil {
@@ -616,33 +608,47 @@ func createHTTPServer(ctx context.Context, ln net.Listener, configuration *stati
 		return nil, err
 	}
 
-	handler = denyFragment(handler)
+	debugConnection := os.Getenv(debugConnectionEnv) != ""
+	if debugConnection || (configuration.Transport != nil && (configuration.Transport.KeepAliveMaxTime > 0 || configuration.Transport.KeepAliveMaxRequests > 0)) {
+		handler = newKeepAliveMiddleware(handler, configuration.Transport.KeepAliveMaxRequests, configuration.Transport.KeepAliveMaxTime)
+	}
+
+	var protocols http.Protocols
+	protocols.SetHTTP1(true)
+	protocols.SetHTTP2(true)
+
+	// With the addition of UnencryptedHTTP2 in http.Server#Protocols in go1.24 setting the h2c handler is not necessary anymore.
+	protocols.SetUnencryptedHTTP2(withH2c)
+
+	handler = contenttype.DisableAutoDetection(handler)
+
 	if configuration.HTTP.EncodeQuerySemicolons {
 		handler = encodeQuerySemicolons(handler)
 	} else {
 		handler = http.AllowQuerySemicolons(handler)
 	}
 
-	handler = contenttype.DisableAutoDetection(handler)
-
-	debugConnection := os.Getenv(debugConnectionEnv) != ""
-	if debugConnection || (configuration.Transport != nil && (configuration.Transport.KeepAliveMaxTime > 0 || configuration.Transport.KeepAliveMaxRequests > 0)) {
-		handler = newKeepAliveMiddleware(handler, configuration.Transport.KeepAliveMaxRequests, configuration.Transport.KeepAliveMaxTime)
+	// Note that the Path sanitization has to be done after the path normalization,
+	// hence the wrapping has to be done before the normalize path wrapping.
+	if configuration.HTTP.SanitizePath != nil && *configuration.HTTP.SanitizePath {
+		handler = sanitizePath(handler)
 	}
 
-	if withH2c {
-		handler = h2c.NewHandler(handler, &http2.Server{
-			MaxConcurrentStreams: uint32(configuration.HTTP2.MaxConcurrentStreams),
-		})
-	}
+	handler = normalizePath(handler)
+
+	handler = denyFragment(handler)
 
 	serverHTTP := &http.Server{
+		Protocols:      &protocols,
 		Handler:        handler,
 		ErrorLog:       stdlog.New(logs.NoLevel(log.Logger, zerolog.DebugLevel), "", 0),
 		ReadTimeout:    time.Duration(configuration.Transport.RespondingTimeouts.ReadTimeout),
 		WriteTimeout:   time.Duration(configuration.Transport.RespondingTimeouts.WriteTimeout),
 		IdleTimeout:    time.Duration(configuration.Transport.RespondingTimeouts.IdleTimeout),
 		MaxHeaderBytes: configuration.HTTP.MaxHeaderBytes,
+		HTTP2: &http.HTTP2Config{
+			MaxConcurrentStreams: int(configuration.HTTP2.MaxConcurrentStreams),
+		},
 	}
 	if debugConnection || (configuration.Transport != nil && (configuration.Transport.KeepAliveMaxTime > 0 || configuration.Transport.KeepAliveMaxRequests > 0)) {
 		serverHTTP.ConnContext = func(ctx context.Context, c net.Conn) context.Context {
@@ -674,19 +680,6 @@ func createHTTPServer(ctx context.Context, ln net.Listener, configuration *stati
 			return prevConnContext(ctx, c)
 		}
 		return ctx
-	}
-
-	// ConfigureServer configures HTTP/2 with the MaxConcurrentStreams option for the given server.
-	// Also keeping behavior the same as
-	// https://cs.opensource.google/go/go/+/refs/tags/go1.17.7:src/net/http/server.go;l=3262
-	if !strings.Contains(os.Getenv("GODEBUG"), "http2server=0") {
-		err = http2.ConfigureServer(serverHTTP, &http2.Server{
-			MaxConcurrentStreams: uint32(configuration.HTTP2.MaxConcurrentStreams),
-			NewWriteScheduler:    func() http2.WriteScheduler { return http2.NewPriorityWriteScheduler(nil) },
-		})
-		if err != nil {
-			return nil, fmt.Errorf("configure HTTP/2 server: %w", err)
-		}
 	}
 
 	listener := newHTTPForwarder(ln)
@@ -759,5 +752,104 @@ func denyFragment(h http.Handler) http.Handler {
 		}
 
 		h.ServeHTTP(rw, req)
+	})
+}
+
+// sanitizePath removes the "..", "." and duplicate slash segments from the URL according to https://datatracker.ietf.org/doc/html/rfc3986#section-6.2.2.3.
+// It cleans the request URL Path and RawPath, and updates the request URI.
+func sanitizePath(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		r2 := new(http.Request)
+		*r2 = *req
+
+		// Cleans the URL raw path and path.
+		r2.URL = r2.URL.JoinPath()
+
+		// Because the reverse proxy director is building query params from requestURI it needs to be updated as well.
+		r2.RequestURI = r2.URL.RequestURI()
+
+		h.ServeHTTP(rw, r2)
+	})
+}
+
+// unreservedCharacters contains the mapping of the percent-encoded form to the ASCII form
+// of the unreserved characters according to https://datatracker.ietf.org/doc/html/rfc3986#section-2.3.
+var unreservedCharacters = map[string]rune{
+	"%41": 'A', "%42": 'B', "%43": 'C', "%44": 'D', "%45": 'E', "%46": 'F',
+	"%47": 'G', "%48": 'H', "%49": 'I', "%4A": 'J', "%4B": 'K', "%4C": 'L',
+	"%4D": 'M', "%4E": 'N', "%4F": 'O', "%50": 'P', "%51": 'Q', "%52": 'R',
+	"%53": 'S', "%54": 'T', "%55": 'U', "%56": 'V', "%57": 'W', "%58": 'X',
+	"%59": 'Y', "%5A": 'Z',
+
+	"%61": 'a', "%62": 'b', "%63": 'c', "%64": 'd', "%65": 'e', "%66": 'f',
+	"%67": 'g', "%68": 'h', "%69": 'i', "%6A": 'j', "%6B": 'k', "%6C": 'l',
+	"%6D": 'm', "%6E": 'n', "%6F": 'o', "%70": 'p', "%71": 'q', "%72": 'r',
+	"%73": 's', "%74": 't', "%75": 'u', "%76": 'v', "%77": 'w', "%78": 'x',
+	"%79": 'y', "%7A": 'z',
+
+	"%30": '0', "%31": '1', "%32": '2', "%33": '3', "%34": '4',
+	"%35": '5', "%36": '6', "%37": '7', "%38": '8', "%39": '9',
+
+	"%2D": '-', "%2E": '.', "%5F": '_', "%7E": '~',
+}
+
+// normalizePath removes from the RawPath unreserved percent-encoded characters as they are equivalent to their non-encoded
+// form according to https://datatracker.ietf.org/doc/html/rfc3986#section-2.3 and capitalizes percent-encoded characters
+// according to https://datatracker.ietf.org/doc/html/rfc3986#section-6.2.2.1.
+func normalizePath(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rawPath := req.URL.RawPath
+
+		// When the RawPath is empty the encoded form of the Path is equivalent to the original request Path.
+		// Thus, the normalization is not needed as no unreserved characters were encoded and the encoded version
+		// of Path obtained with URL.EscapedPath contains only percent-encoded characters in upper case.
+		if rawPath == "" {
+			h.ServeHTTP(rw, req)
+			return
+		}
+
+		var normalizedRawPathBuilder strings.Builder
+		for i := 0; i < len(rawPath); i++ {
+			if rawPath[i] != '%' {
+				normalizedRawPathBuilder.WriteString(string(rawPath[i]))
+				continue
+			}
+
+			// This should never happen as the standard library will reject requests containing invalid percent-encodings.
+			// This discards URLs with a percent character at the end.
+			if i+2 >= len(rawPath) {
+				rw.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			encodedCharacter := strings.ToUpper(rawPath[i : i+3])
+			if r, unreserved := unreservedCharacters[encodedCharacter]; unreserved {
+				normalizedRawPathBuilder.WriteRune(r)
+			} else {
+				normalizedRawPathBuilder.WriteString(encodedCharacter)
+			}
+
+			i += 2
+		}
+
+		normalizedRawPath := normalizedRawPathBuilder.String()
+
+		// We do not have to alter the request URL as the original RawPath is already normalized.
+		if normalizedRawPath == rawPath {
+			h.ServeHTTP(rw, req)
+			return
+		}
+
+		r2 := new(http.Request)
+		*r2 = *req
+
+		// Decoding unreserved characters only alter the RAW version of the URL,
+		// as unreserved percent-encoded characters are equivalent to their non encoded form.
+		r2.URL.RawPath = normalizedRawPath
+
+		// Because the reverse proxy director is building query params from RequestURI it needs to be updated as well.
+		r2.RequestURI = r2.URL.RequestURI()
+
+		h.ServeHTTP(rw, r2)
 	})
 }

@@ -2,11 +2,9 @@ package service
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -24,6 +22,7 @@ import (
 	"github.com/traefik/traefik/v3/pkg/middlewares/capture"
 	metricsMiddle "github.com/traefik/traefik/v3/pkg/middlewares/metrics"
 	"github.com/traefik/traefik/v3/pkg/middlewares/observability"
+	"github.com/traefik/traefik/v3/pkg/middlewares/retry"
 	"github.com/traefik/traefik/v3/pkg/proxy/httputil"
 	"github.com/traefik/traefik/v3/pkg/safe"
 	"github.com/traefik/traefik/v3/pkg/server/cookie"
@@ -31,6 +30,7 @@ import (
 	"github.com/traefik/traefik/v3/pkg/server/provider"
 	"github.com/traefik/traefik/v3/pkg/server/service/loadbalancer/failover"
 	"github.com/traefik/traefik/v3/pkg/server/service/loadbalancer/mirror"
+	"github.com/traefik/traefik/v3/pkg/server/service/loadbalancer/p2c"
 	"github.com/traefik/traefik/v3/pkg/server/service/loadbalancer/wrr"
 	"google.golang.org/grpc/status"
 )
@@ -306,6 +306,13 @@ func (m *Manager) getServiceHandler(ctx context.Context, service dynamic.WRRServ
 	}
 }
 
+type serverBalancer interface {
+	http.Handler
+	healthcheck.StatusSetter
+
+	AddServer(name string, handler http.Handler, server dynamic.Server)
+}
+
 func (m *Manager) getLoadBalancerServiceHandler(ctx context.Context, serviceName string, info *runtime.ServiceInfo) (http.Handler, error) {
 	service := info.LoadBalancer
 
@@ -332,21 +339,27 @@ func (m *Manager) getLoadBalancerServiceHandler(ctx context.Context, serviceName
 		passHostHeader = *service.PassHostHeader
 	}
 
-	lb := wrr.New(service.Sticky, service.HealthCheck != nil)
+	var lb serverBalancer
+	switch service.Strategy {
+	// Here we are handling the empty value to comply with providers that are not applying defaults (e.g. REST provider)
+	// TODO: remove this when all providers apply default values.
+	case dynamic.BalancerStrategyWRR, "":
+		lb = wrr.New(service.Sticky, service.HealthCheck != nil)
+	case dynamic.BalancerStrategyP2C:
+		lb = p2c.New(service.Sticky, service.HealthCheck != nil)
+	default:
+		return nil, fmt.Errorf("unsupported load-balancer strategy %q", service.Strategy)
+	}
+
 	healthCheckTargets := make(map[string]*url.URL)
 
-	for _, server := range shuffle(service.Servers, m.rand) {
-		hasher := fnv.New64a()
-		_, _ = hasher.Write([]byte(server.URL)) // this will never return an error.
-
-		proxyName := hex.EncodeToString(hasher.Sum(nil))
-
+	for i, server := range shuffle(service.Servers, m.rand) {
 		target, err := url.Parse(server.URL)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing server URL %s: %w", server.URL, err)
 		}
 
-		logger.Debug().Str(logs.ServerName, proxyName).Stringer("target", target).
+		logger.Debug().Int(logs.ServerIndex, i).Str("URL", server.URL).
 			Msg("Creating server")
 
 		qualifiedSvcName := provider.GetQualifiedName(ctx, serviceName)
@@ -356,6 +369,10 @@ func (m *Manager) getLoadBalancerServiceHandler(ctx context.Context, serviceName
 		if err != nil {
 			return nil, fmt.Errorf("error building proxy for server URL %s: %w", server.URL, err)
 		}
+		// The retry wrapping must be done just before the proxy handler,
+		// to make sure that the retry will not be triggered/disabled by
+		// middlewares in the chain.
+		proxy = retry.WrapHandler(proxy)
 
 		// Prevents from enabling observability for internal resources.
 
@@ -392,12 +409,12 @@ func (m *Manager) getLoadBalancerServiceHandler(ctx context.Context, serviceName
 			proxy, _ = capture.Wrap(proxy)
 		}
 
-		lb.Add(proxyName, proxy, server.Weight, server.Fenced)
+		lb.AddServer(server.URL, proxy, server)
 
 		// servers are considered UP by default.
 		info.UpdateServerStatus(target.String(), runtime.StatusUp)
 
-		healthCheckTargets[proxyName] = target
+		healthCheckTargets[server.URL] = target
 	}
 
 	if service.HealthCheck != nil {

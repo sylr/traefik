@@ -170,6 +170,15 @@ you'd add the label `traefik.http.services.{name-of-your-choice}.loadbalancer.pa
     traefik.http.services.myservice.loadbalancer.server.scheme=http
     ```
 
+??? info "`traefik.http.services.<service_name>.loadbalancer.server.url`"
+
+    Defines the service URL.
+    This option cannot be used in combination with `port` or `scheme` definition.
+
+    ```yaml
+    traefik.http.services.myservice.loadbalancer.server.url=http://foobar:8080
+    ```
+
 ??? info "`traefik.http.services.<service_name>.loadbalancer.serverstransport`"
     
     Allows to reference a ServersTransport resource that is defined either with the File provider or the Kubernetes CRD one.
@@ -315,6 +324,14 @@ you'd add the label `traefik.http.services.{name-of-your-choice}.loadbalancer.pa
     traefik.http.services.myservice.loadbalancer.sticky.cookie.samesite=none
     ```
 
+??? info "`traefik.http.services.<service_name>.loadbalancer.sticky.cookie.domain`"
+    
+    See [sticky sessions](../services/index.md#sticky-sessions) for more information.
+    
+    ```yaml
+    traefik.http.services.myservice.loadbalancer.sticky.cookie.domain=foo.com
+    ```
+
 ??? info "`traefik.http.services.<service_name>.loadbalancer.sticky.cookie.maxage`"
     
     See [sticky sessions](../services/index.md#sticky-sessions) for more information.
@@ -331,6 +348,14 @@ you'd add the label `traefik.http.services.{name-of-your-choice}.loadbalancer.pa
     
     ```yaml
     traefik.http.services.myservice.loadbalancer.responseforwarding.flushinterval=10
+    ```
+
+??? info "`traefik.http.services.<service_name>.loadbalancer.strategy`"
+
+    See [load balancing strategy](../services/index.md#load-balancing-strategy) for more information.
+
+    ```yaml
+    traefik.http.services.myservice.loadbalancer.strategy=p2c
     ```
 
 ### Middleware

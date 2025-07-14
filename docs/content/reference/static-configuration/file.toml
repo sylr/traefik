@@ -53,6 +53,7 @@
     [entryPoints.EntryPoint0.http]
       middlewares = ["foobar", "foobar"]
       encodeQuerySemicolons = true
+      sanitizePath = true
       maxHeaderBytes = 42
       [entryPoints.EntryPoint0.http.redirections]
         [entryPoints.EntryPoint0.http.redirections.entryPoint]
@@ -505,6 +506,8 @@
       email = "foobar"
       caServer = "foobar"
       preferredChain = "foobar"
+      profile = "foobar"
+      emailAddresses = ["foobar", "foobar"]
       storage = "foobar"
       keyType = "foobar"
       certificatesDuration = 42
@@ -533,6 +536,8 @@
       email = "foobar"
       caServer = "foobar"
       preferredChain = "foobar"
+      profile = "foobar"
+      emailAddresses = ["foobar", "foobar"]
       storage = "foobar"
       keyType = "foobar"
       certificatesDuration = 42

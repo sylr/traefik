@@ -168,6 +168,9 @@ Key identifier from External CA.
 `--certificatesresolvers.<name>.acme.email`:  
 Email address used for registration.
 
+`--certificatesresolvers.<name>.acme.emailaddresses`:  
+CSR email addresses to use.
+
 `--certificatesresolvers.<name>.acme.httpchallenge`:  
 Activate HTTP-01 Challenge. (Default: ```false```)
 
@@ -179,6 +182,9 @@ KeyType used for generating certificate private key. Allow value 'EC256', 'EC384
 
 `--certificatesresolvers.<name>.acme.preferredchain`:  
 Preferred chain to use.
+
+`--certificatesresolvers.<name>.acme.profile`:  
+Certificate profile to use.
 
 `--certificatesresolvers.<name>.acme.storage`:  
 Storage to use. (Default: ```acme.json```)
@@ -236,6 +242,9 @@ Scheme used for the redirection. (Default: ```https```)
 
 `--entrypoints.<name>.http.redirections.entrypoint.to`:  
 Targeted entry point of the redirection.
+
+`--entrypoints.<name>.http.sanitizepath`:  
+Defines whether to enable request path sanitization (removal of /./, /../ and multiple slash sequences). (Default: ```true```)
 
 `--entrypoints.<name>.http.tls`:  
 Default TLS configuration for the routers linked to the entry point. (Default: ```false```)

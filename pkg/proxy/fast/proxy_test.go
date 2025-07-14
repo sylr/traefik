@@ -20,7 +20,6 @@ import (
 	"github.com/traefik/traefik/v3/pkg/config/dynamic"
 	"github.com/traefik/traefik/v3/pkg/config/static"
 	"github.com/traefik/traefik/v3/pkg/testhelpers"
-	"github.com/traefik/traefik/v3/pkg/tls/generate"
 )
 
 const (
@@ -125,9 +124,17 @@ func TestProxyFromEnvironment(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			backendURL, backendCert := newBackendServer(t, test.tls, http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-				_, _ = rw.Write([]byte("backend"))
-			}))
+			var backendServer *httptest.Server
+			if test.tls {
+				backendServer = httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+					_, _ = rw.Write([]byte("backendTLS"))
+				}))
+			} else {
+				backendServer = httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+					_, _ = rw.Write([]byte("backend"))
+				}))
+			}
+			t.Cleanup(backendServer.Close)
 
 			var proxyCalled bool
 			proxyHandler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -155,8 +162,21 @@ func TestProxyFromEnvironment(t *testing.T) {
 				connHj, _, err := hj.Hijack()
 				require.NoError(t, err)
 
-				go func() { _, _ = io.Copy(connHj, conn) }()
-				_, _ = io.Copy(conn, connHj)
+				defer func() {
+					_ = connHj.Close()
+					_ = conn.Close()
+				}()
+
+				errCh := make(chan error, 1)
+				go func() {
+					_, err = io.Copy(connHj, conn)
+					errCh <- err
+				}()
+				go func() {
+					_, err = io.Copy(conn, connHj)
+					errCh <- err
+				}()
+				<-errCh // Wait for one of the copy operations to finish
 			})
 
 			var proxyURL string
@@ -198,7 +218,7 @@ func TestProxyFromEnvironment(t *testing.T) {
 				proxyURL = proxyServer.URL
 
 			case proxyHTTPS:
-				proxyServer := httptest.NewServer(proxyHandler)
+				proxyServer := httptest.NewTLSServer(proxyHandler)
 				t.Cleanup(proxyServer.Close)
 
 				proxyURL = proxyServer.URL
@@ -209,11 +229,8 @@ func TestProxyFromEnvironment(t *testing.T) {
 			if proxyCert != nil {
 				certPool.AddCert(proxyCert)
 			}
-			if backendCert != nil {
-				cert, err := x509.ParseCertificate(backendCert.Certificate[0])
-				require.NoError(t, err)
-
-				certPool.AddCert(cert)
+			if backendServer.Certificate() != nil {
+				certPool.AddCert(backendServer.Certificate())
 			}
 
 			builder := NewProxyBuilder(&transportManagerMock{tlsConfig: &tls.Config{RootCAs: certPool}}, static.FastProxyConfig{})
@@ -230,7 +247,7 @@ func TestProxyFromEnvironment(t *testing.T) {
 				return u, nil
 			}
 
-			reverseProxy, err := builder.Build("foo", testhelpers.MustParseURL(backendURL), false, false)
+			reverseProxy, err := builder.Build("foo", testhelpers.MustParseURL(backendServer.URL), false, false)
 			require.NoError(t, err)
 
 			reverseProxyServer := httptest.NewServer(reverseProxy)
@@ -246,7 +263,11 @@ func TestProxyFromEnvironment(t *testing.T) {
 			body, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
 
-			assert.Equal(t, "backend", string(body))
+			if test.tls {
+				assert.Equal(t, "backendTLS", string(body))
+			} else {
+				assert.Equal(t, "backend", string(body))
+			}
 			assert.True(t, proxyCalled)
 		})
 	}
@@ -306,50 +327,83 @@ func TestHeadRequest(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.Code)
 }
 
-func newCertificate(t *testing.T, domain string) *tls.Certificate {
-	t.Helper()
-
-	certPEM, keyPEM, err := generate.KeyPair(domain, time.Time{})
+func TestNoContentLength(t *testing.T) {
+	backendListener, err := net.Listen("tcp", ":0")
 	require.NoError(t, err)
 
-	certificate, err := tls.X509KeyPair(certPEM, keyPEM)
+	t.Cleanup(func() {
+		_ = backendListener.Close()
+	})
+
+	go func() {
+		t.Helper()
+
+		conn, err := backendListener.Accept()
+		require.NoError(t, err)
+
+		_, err = conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\nfoo"))
+		require.NoError(t, err)
+
+		// CloseWrite the connection to signal the end of the response.
+		if v, ok := conn.(interface{ CloseWrite() error }); ok {
+			err = v.CloseWrite()
+			require.NoError(t, err)
+		}
+	}()
+
+	builder := NewProxyBuilder(&transportManagerMock{}, static.FastProxyConfig{})
+
+	serverURL := "http://" + backendListener.Addr().String()
+
+	proxyHandler, err := builder.Build("", testhelpers.MustParseURL(serverURL), true, true)
 	require.NoError(t, err)
 
-	return &certificate
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	res := httptest.NewRecorder()
+
+	proxyHandler.ServeHTTP(res, req)
+
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "foo", res.Body.String())
 }
 
-func newBackendServer(t *testing.T, isTLS bool, handler http.Handler) (string, *tls.Certificate) {
-	t.Helper()
+func TestTransferEncodingChunked(t *testing.T) {
+	backendServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		flusher, ok := rw.(http.Flusher)
+		require.True(t, ok)
 
-	var ln net.Listener
-	var err error
-	var cert *tls.Certificate
+		for i := range 3 {
+			_, err := fmt.Fprintf(rw, "chunk %d\n", i)
+			require.NoError(t, err)
 
-	scheme := "http"
-	domain := "backend.localhost"
-	if isTLS {
-		scheme = "https"
+			flusher.Flush()
+		}
+	}))
+	t.Cleanup(backendServer.Close)
 
-		cert = newCertificate(t, domain)
+	builder := NewProxyBuilder(&transportManagerMock{}, static.FastProxyConfig{})
 
-		ln, err = tls.Listen("tcp", ":0", &tls.Config{Certificates: []tls.Certificate{*cert}})
-		require.NoError(t, err)
-	} else {
-		ln, err = net.Listen("tcp", ":0")
-		require.NoError(t, err)
-	}
-
-	srv := &http.Server{Handler: handler}
-	go func() { _ = srv.Serve(ln) }()
-
-	t.Cleanup(func() { _ = srv.Close() })
-
-	_, port, err := net.SplitHostPort(ln.Addr().String())
+	proxyHandler, err := builder.Build("", testhelpers.MustParseURL(backendServer.URL), true, true)
 	require.NoError(t, err)
 
-	backendURL := fmt.Sprintf("%s://%s:%s", scheme, domain, port)
+	proxyServer := httptest.NewServer(proxyHandler)
+	t.Cleanup(proxyServer.Close)
 
-	return backendURL, cert
+	req, err := http.NewRequest(http.MethodGet, proxyServer.URL, http.NoBody)
+	require.NoError(t, err)
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+	assert.Equal(t, []string{"chunked"}, res.TransferEncoding)
+
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+
+	assert.Equal(t, "chunk 0\nchunk 1\nchunk 2\n", string(body))
 }
 
 type transportManagerMock struct {

@@ -6,11 +6,11 @@ on:
       - 'v*.*.*'
 
 env:
-  GO_VERSION: '1.23'
+  GO_VERSION: '1.24'
   CGO_ENABLED: 0
   VERSION: ${{ github.ref_name }}
   TRAEFIKER_EMAIL: "traefiker@traefik.io"
-  CODENAME: saintnectaire
+  CODENAME: chaource
 
 jobs:
 
@@ -41,6 +41,7 @@ jobs:
           ImageOS: ${{ matrix.os }}
         with:
           go-version: ${{ env.GO_VERSION }}
+          check-latest: true
 
       - name: Artifact webui
         uses: actions/download-artifact@v4
