@@ -1,6 +1,6 @@
 # -- WEBUI ---------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM node:20.11 as webui
+FROM --platform=$BUILDPLATFORM node:22.17-alpine3.21 as webui
 
 WORKDIR /src/webui/
 
@@ -15,7 +15,7 @@ RUN yarn build
 
 # -- GO BUILD ------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM golang:1.23-alpine as gobuild
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine as gobuild
 
 WORKDIR /go/src/github.com/traefik/traefik
 
