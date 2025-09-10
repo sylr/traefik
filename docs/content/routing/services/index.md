@@ -415,7 +415,8 @@ Below are the available options for the health check mechanism:
 - `mode` (default: http), if defined to `grpc`, will use the gRPC health check protocol to probe the server.
 - `hostname` (optional), sets the value of `hostname` in the `Host` header of the health check request.
 - `port` (optional), replaces the server URL `port` for the health check endpoint.
-- `interval` (default: 30s), defines the frequency of the health check calls.
+- `interval` (default: 30s), defines the frequency of the health check calls for healthy targets.
+- `unhealthyInterval` (default: 30s), defines the frequency of the health check calls for unhealthy targets.  When not defined, it defaults to the `interval` value.
 - `timeout` (default: 5s), defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.
 - `headers` (optional), defines custom headers to be sent to the health check endpoint.
 - `followRedirects` (default: true), defines whether redirects should be followed during the health check calls.
@@ -424,7 +425,7 @@ Below are the available options for the health check mechanism:
 
 !!! info "Interval & Timeout Format"
 
-    Interval and timeout are to be given in a format understood by [time.ParseDuration](https://golang.org/pkg/time/#ParseDuration).
+    Interval, UnhealthyInterval and Timeout are to be given in a format understood by [time.ParseDuration](https://golang.org/pkg/time/#ParseDuration).
 
 !!! info "Recovering Servers"
 
@@ -1646,79 +1647,6 @@ The `tls` determines whether to use TLS when dialing with the backend.
 
     If no serversTransport is specified, the `default@internal` will be used.
     The `default@internal` serversTransport is created from the [static configuration](../overview.md#tcp-servers-transports).
-
-#### PROXY Protocol
-
-Traefik supports [PROXY Protocol](https://www.haproxy.org/download/2.0/doc/proxy-protocol.txt) version 1 and 2 on TCP Services.
-It can be enabled by setting `proxyProtocol` on the load balancer.
-
-Below are the available options for the PROXY protocol:
-
-- `version` specifies the version of the protocol to be used. Either `1` or `2`.
-
-!!! info "Version"
-
-    Specifying a version is optional. By default the version 2 will be used.
-
-??? example "A Service with Proxy Protocol v1 -- Using the [File Provider](../../providers/file.md)"
-
-    ```yaml tab="YAML"
-    ## Dynamic configuration
-    tcp:
-      services:
-        my-service:
-          loadBalancer:
-            proxyProtocol:
-              version: 1
-    ```
-
-    ```toml tab="TOML"
-    ## Dynamic configuration
-    [tcp.services]
-      [tcp.services.my-service.loadBalancer]
-        [tcp.services.my-service.loadBalancer.proxyProtocol]
-          version = 1
-    ```
-
-#### Termination Delay
-
-!!! warning
-
-    Deprecated in favor of [`serversTransport.terminationDelay`](#terminationdelay).
-    Please note that if any `serversTransport` configuration on the servers load balancer is found,
-    it will take precedence over the servers load balancer `terminationDelay` value,
-    even if the `serversTransport.terminationDelay` is undefined.
-
-As a proxy between a client and a server, it can happen that either side (e.g. client side) decides to terminate its writing capability on the connection (i.e. issuance of a FIN packet).
-The proxy needs to propagate that intent to the other side, and so when that happens, it also does the same on its connection with the other side (e.g. backend side).
-
-However, if for some reason (bad implementation, or malicious intent) the other side does not eventually do the same as well,
-the connection would stay half-open, which would lock resources for however long.
-
-To that end, as soon as the proxy enters this termination sequence, it sets a deadline on fully terminating the connections on both sides.
-
-The termination delay controls that deadline.
-It is a duration in milliseconds, defaulting to 100.
-A negative value means an infinite deadline (i.e. the connection is never fully terminated by the proxy itself).
-
-??? example "A Service with a termination delay -- Using the [File Provider](../../providers/file.md)"
-
-    ```yaml tab="YAML"
-    ## Dynamic configuration
-    tcp:
-      services:
-        my-service:
-          loadBalancer:
-            terminationDelay: 200
-    ```
-
-    ```toml tab="TOML"
-    ## Dynamic configuration
-    [tcp.services]
-      [tcp.services.my-service.loadBalancer]
-        [[tcp.services.my-service.loadBalancer]]
-          terminationDelay = 200
-    ```
 
 ### Weighted Round Robin
 

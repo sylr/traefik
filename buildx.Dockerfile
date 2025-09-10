@@ -1,11 +1,12 @@
 # -- WEBUI ---------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM node:22.17-alpine3.21 as webui
+FROM --platform=$BUILDPLATFORM node:24.7-alpine3.22 AS webui
+
+RUN npm upgrade --global yarn
 
 WORKDIR /src/webui/
 
-COPY ./webui/package.json ./
-COPY ./webui/yarn.lock ./
+COPY ./webui/package.json ./webui/yarn.lock ./webui/.yarnrc.yml ./
 
 RUN yarn install
 
@@ -15,7 +16,7 @@ RUN yarn build
 
 # -- GO BUILD ------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine as gobuild
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS gobuild
 
 WORKDIR /go/src/github.com/traefik/traefik
 
@@ -44,9 +45,9 @@ SHELL ["bash", "-c"]
 RUN if [ "${TARGETARCH}" = "amd64" ]; then \
         VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOAMD64=${TARGETVARIANT} make binary; \
     elif [ "${TARGETARCH}" = "arm" ]; then \
-        VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT/v/} make binary; \
+        VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT} make binary; \
     elif [ "${TARGETARCH}" = "arm64" ]; then \
-        VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} make binary; \
+        VERSION="$(git describe --tags --always)" GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM64=${TARGETVARIANT} make binary; \
     else \
         echo "Unsupported architecture: ${TARGETARCH}"; exit 1; \
     fi
@@ -65,7 +66,7 @@ COPY --from=gobuild /etc/passwd /etc/passwd
 COPY --from=gobuild /etc/group /etc/group
 COPY --from=gobuild /etc/services /etc/services
 
-COPY --from=gobuild /go/src/github.com/traefik/traefik/dist/$TARGETPLATFORM/traefik /
+COPY --from=gobuild /go/src/github.com/traefik/traefik/dist/${TARGETPLATFORM}/traefik /
 
 EXPOSE 80
 VOLUME ["/tmp"]

@@ -1,7 +1,7 @@
 ---
 title: "Traefik HTTP Services Documentation"
 description: "A service is in charge of connecting incoming requests to the Servers that can handle them. Read the technical documentation."
---- 
+---
 
 ## Service Load Balancer
 
@@ -70,7 +70,6 @@ labels:
 
 ```json tab="Tags"
 {
-  // ...
   "Tags": [
     "traefik.http.services.my-service.loadBalancer.servers[0].url=http://private-ip-server-1/",
     "traefik.http.services.my-service.loadBalancer.servers[0].weight=2",
@@ -88,15 +87,15 @@ labels:
 
 ### Configuration Options
 
-| Field | Description                                 | Required |
-|----------|------------------------------------------|----------|
-|`servers`| Represents individual backend instances for your service | Yes |
-|`sticky`| Defines a `Set-Cookie` header is set on the initial response to let the client know which server handles the first response. | No |
-|`healthcheck`| Configures health check to remove unhealthy servers from the load balancing rotation. | No |
-|`passHostHeader`| Allows forwarding of the client Host header to server. By default, `passHostHeader` is true. | No |
-|`serversTransport`| Allows to reference an [HTTP ServersTransport](./serverstransport.md) configuration for the communication between Traefik and your servers. If no `serversTransport` is specified, the `default@internal` will be used. | No |
-| `responseForwarding` | Configures how Traefik forwards the response from the backend server to the client.| No |
-| `responseForwarding.FlushInterval` | Specifies the interval in between flushes to the client while copying the response body. It is a duration in milliseconds, defaulting to 100ms. A negative value means to flush immediately after each write to the client. The `FlushInterval` is ignored when ReverseProxy recognizes a response as a streaming response; for such responses, writes are flushed to the client immediately. | No |
+| Field                              | Description                                                                                                                                                                                                                                                                                                                                                                                   | Required |
+|------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|
+| `servers`                          | Represents individual backend instances for your service                                                                                                                                                                                                                                                                                                                                      | Yes      |
+| `sticky`                           | Defines a `Set-Cookie` header is set on the initial response to let the client know which server handles the first response.                                                                                                                                                                                                                                                                  | No       |
+| `healthcheck`                      | Configures health check to remove unhealthy servers from the load balancing rotation.                                                                                                                                                                                                                                                                                                         | No       |
+| `passHostHeader`                   | Allows forwarding of the client Host header to server. By default, `passHostHeader` is true.                                                                                                                                                                                                                                                                                                  | No       |
+| `serversTransport`                 | Allows to reference an [HTTP ServersTransport](./serverstransport.md) configuration for the communication between Traefik and your servers. If no `serversTransport` is specified, the `default@internal` will be used.                                                                                                                                                                       | No       |
+| `responseForwarding`               | Configures how Traefik forwards the response from the backend server to the client.                                                                                                                                                                                                                                                                                                           | No       |
+| `responseForwarding.FlushInterval` | Specifies the interval in between flushes to the client while copying the response body. It is a duration in milliseconds, defaulting to 100ms. A negative value means to flush immediately after each write to the client. The `FlushInterval` is ignored when ReverseProxy recognizes a response as a streaming response; for such responses, writes are flushed to the client immediately. | No       |
 
 #### Servers
 
@@ -104,11 +103,11 @@ Servers represent individual backend instances for your service. The [service lo
 
 ##### Configuration Options
 
-| Field | Description                                 | Required |
-|----------|------------------------------------------|----------|
-|`url`| Points to a specific instance. | Yes for File provider, No for [Docker provider](../../other-providers/docker.md) |
-|`weight`| Allows for weighted load balancing on the servers. | No |
-|`preservePath`| Allows to preserve the URL path. | No |
+| Field          | Description                                        | Required                                                                         |
+|----------------|----------------------------------------------------|----------------------------------------------------------------------------------|
+| `url`          | Points to a specific instance.                     | Yes for File provider, No for [Docker provider](../../other-providers/docker.md) |
+| `weight`       | Allows for weighted load balancing on the servers. | No                                                                               |
+| `preservePath` | Allows to preserve the URL path.                   | No                                                                               |
 
 #### Health Check
 
@@ -118,20 +117,179 @@ To propagate status changes (e.g. all servers of this service are down) upwards,
 
 Below are the available options for the health check mechanism:
 
-| Field | Description                                 | Default | Required |
-|----------|------------------------------------------|----------|--------|
-|`path`| Defines the server URL path for the health check endpoint. | "" | Yes |
-|`scheme`| Replaces the server URL scheme for the health check endpoint. | | No |
-|`mode`| If defined to `grpc`, will use the gRPC health check protocol to probe the server. | http | No |
-|`hostname`| Defines the value of hostname in the Host header of the health check request. | "" | No |
-|`port`| Replaces the server URL port for the health check endpoint. |  | No |
-|`interval`| Defines the frequency of the health check calls. | 30s | No |
-|`timeout`| Defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy. | 5s | No |
-|`headers`| Defines custom headers to be sent to the health check endpoint. | | No |
-|`followRedirects`| Defines whether redirects should be followed during the health check calls. | true | No |
-|`hostname`| Defines the value of hostname in the Host header of the health check request. | "" | No |
-|`method`| Defines the HTTP method that will be used while connecting to the endpoint. | GET | No |
-|`status`| Defines the expected HTTP status code of the response to the health check request. | | No |
+| Field               | Description                                                                                                                   | Default | Required |
+|---------------------|-------------------------------------------------------------------------------------------------------------------------------|---------|----------|
+| `path`              | Defines the server URL path for the health check endpoint.                                                                    | ""      | Yes      |
+| `scheme`            | Replaces the server URL scheme for the health check endpoint.                                                                 |         | No       |
+| `mode`              | If defined to `grpc`, will use the gRPC health check protocol to probe the server.                                            | http    | No       |
+| `hostname`          | Defines the value of hostname in the Host header of the health check request.                                                 | ""      | No       |
+| `port`              | Replaces the server URL port for the health check endpoint.                                                                   |         | No       |
+| `interval`          | Defines the frequency of the health check calls for healthy targets.                                                          | 30s     | No       |
+| `unhealthyInterval` | Defines the frequency of the health check calls for unhealthy targets. When not defined, it defaults to the `interval` value. | 30s     | No       |
+| `timeout`           | Defines the maximum duration Traefik will wait for a health check request before considering the server unhealthy.            | 5s      | No       |
+| `headers`           | Defines custom headers to be sent to the health check endpoint.                                                               |         | No       |
+| `followRedirects`   | Defines whether redirects should be followed during the health check calls.                                                   | true    | No       |
+| `hostname`          | Defines the value of hostname in the Host header of the health check request.                                                 | ""      | No       |
+| `method`            | Defines the HTTP method that will be used while connecting to the endpoint.                                                   | GET     | No       |
+| `status`            | Defines the expected HTTP status code of the response to the health check request.                                            |         | No       |
+
+#### Sticky sessions
+
+When sticky sessions are enabled, a `Set-Cookie` header is set on the initial response to let the client know which server handles the first response.
+On subsequent requests, to keep the session alive with the same server, the client should send the cookie with the value set.
+
+##### Stickiness on multiple levels
+
+    When chaining or mixing load-balancers (e.g. a load-balancer of servers is one of the "children" of a load-balancer of services), for stickiness to work all the way, the option needs to be specified at all required levels. Which means the client needs to send a cookie with as many key/value pairs as there are sticky levels.
+
+##### Stickiness & Unhealthy Servers
+
+    If the server specified in the cookie becomes unhealthy, the request will be forwarded to a new server (and the cookie will keep track of the new server).
+
+##### Cookie Name
+
+    The default cookie name is an abbreviation of a sha1 (ex: `_1d52e`).
+
+##### MaxAge
+
+    By default, the affinity cookie will never expire as the `MaxAge` option is set to zero.
+
+    This option indicates the number of seconds until the cookie expires.  
+    When set to a negative number, the cookie expires immediately.
+    
+##### Secure & HTTPOnly & SameSite flags
+
+    By default, the affinity cookie is created without those flags.
+    One however can change that through configuration.
+
+    `SameSite` can be `none`, `lax`, `strict` or empty.
+
+##### Domain
+
+    The Domain attribute of a cookie specifies the domain for which the cookie is valid. 
+    
+    By setting the Domain attribute, the cookie can be shared across subdomains (for example, a cookie set for example.com would be accessible to www.example.com, api.example.com, etc.). This is particularly useful in cases where sticky sessions span multiple subdomains, ensuring that the session is maintained even when the client interacts with different parts of the infrastructure.
+
+??? example "Adding Stickiness -- Using the [File Provider](../../../install-configuration/providers/others/file.md)"
+
+    ```yaml tab="YAML"
+    ## Dynamic configuration
+    http:
+      services:
+        my-service:
+          loadBalancer:
+            sticky:
+             cookie: {}
+    ```
+
+    ```toml tab="TOML"
+    ## Dynamic configuration
+    [http.services]
+      [http.services.my-service]
+        [http.services.my-service.loadBalancer.sticky.cookie]
+    ```
+
+??? example "Adding Stickiness with custom Options -- Using the [File Provider](../../../install-configuration/providers/others/file.md)"
+
+    ```yaml tab="YAML"
+    ## Dynamic configuration
+    http:
+      services:
+        my-service:
+          loadBalancer:
+            sticky:
+              cookie:
+                name: my_sticky_cookie_name
+                secure: true
+                domain: mysite.site
+                httpOnly: true
+    ```
+
+    ```toml tab="TOML"
+    ## Dynamic configuration
+    [http.services]
+      [http.services.my-service]
+        [http.services.my-service.loadBalancer.sticky.cookie]
+          name = "my_sticky_cookie_name"
+          secure = true
+          httpOnly = true
+          domain = "mysite.site"
+          sameSite = "none"
+    ```
+
+??? example "Setting Stickiness on all the required levels -- Using the [File Provider](../../../install-configuration/providers/others/file.md)"
+
+    ```yaml tab="YAML"
+    ## Dynamic configuration
+    http:
+      services:
+        wrr1:
+          weighted:
+            sticky:
+              cookie:
+                name: lvl1
+            services:
+              - name: whoami1
+                weight: 1
+              - name: whoami2
+                weight: 1
+
+        whoami1:
+          loadBalancer:
+            sticky:
+              cookie:
+                name: lvl2
+            servers:
+              - url: http://127.0.0.1:8081
+              - url: http://127.0.0.1:8082
+
+        whoami2:
+          loadBalancer:
+            sticky:
+              cookie:
+                name: lvl2
+            servers:
+              - url: http://127.0.0.1:8083
+              - url: http://127.0.0.1:8084
+    ```
+
+    ```toml tab="TOML"
+    ## Dynamic configuration
+    [http.services]
+      [http.services.wrr1]
+        [http.services.wrr1.weighted.sticky.cookie]
+          name = "lvl1"
+        [[http.services.wrr1.weighted.services]]
+          name = "whoami1"
+          weight = 1
+        [[http.services.wrr1.weighted.services]]
+          name = "whoami2"
+          weight = 1
+
+      [http.services.whoami1]
+        [http.services.whoami1.loadBalancer]
+          [http.services.whoami1.loadBalancer.sticky.cookie]
+            name = "lvl2"
+          [[http.services.whoami1.loadBalancer.servers]]
+            url = "http://127.0.0.1:8081"
+          [[http.services.whoami1.loadBalancer.servers]]
+            url = "http://127.0.0.1:8082"
+
+      [http.services.whoami2]
+        [http.services.whoami2.loadBalancer]
+          [http.services.whoami2.loadBalancer.sticky.cookie]
+            name = "lvl2"
+          [[http.services.whoami2.loadBalancer.servers]]
+            url = "http://127.0.0.1:8083"
+          [[http.services.whoami2.loadBalancer.servers]]
+            url = "http://127.0.0.1:8084"
+    ```
+
+    To keep a session open with the same server, the client would then need to specify the two levels within the cookie for each request, e.g. with curl:
+
+    ```
+    curl -b "lvl1=whoami1; lvl2=http://127.0.0.1:8081" http://localhost:8000
+    ```
 
 ## Weighted Round Robin (WRR)
 
@@ -141,7 +299,7 @@ This strategy is only available to load balance between services and not between
 
 !!! info "Supported Providers"
 
-    This strategy can be defined currently with the [File](../../../install-configuration/providers/others/file.md) or [IngressRoute](../../../install-configuration/providers/kubernetes/kubernetes-ingress.md) providers. To load balance between servers based on weights, the Load Balancer service should be used instead.
+    This strategy can be defined currently with the [File](../../../install-configuration/providers/others/file.md) or [IngressRoute](../../../install-configuration/providers/kubernetes/kubernetes-crd.md) providers. To load balance between servers based on weights, the Load Balancer service should be used instead.
 
 ```yaml tab="Structured (YAML)"
 ## Dynamic configuration
@@ -260,6 +418,37 @@ http:
       [[http.services.appv2.loadBalancer.servers]]
         url = "http://private-ip-server-2/"
 ```
+## P2C
+
+Power of two choices algorithm is a load balancing strategy that selects two servers at random and chooses the one with the least number of active requests.
+
+??? example "P2C Load Balancing -- Using the [File Provider](../../../install-configuration/providers/others/file.md)"
+
+    ```yaml tab="YAML"
+    ## Dynamic configuration
+    http:
+      services:
+        my-service:
+          loadBalancer:
+            strategy: "p2c"
+            servers:
+            - url: "http://private-ip-server-1/"
+            - url: "http://private-ip-server-2/"
+            - url: "http://private-ip-server-3/"
+    ```
+
+    ```toml tab="TOML"
+    ## Dynamic configuration
+    [http.services]
+      [http.services.my-service.loadBalancer]
+        strategy = "p2c"
+        [[http.services.my-service.loadBalancer.servers]]
+          url = "http://private-ip-server-1/"
+        [[http.services.my-service.loadBalancer.servers]]
+          url = "http://private-ip-server-2/"       
+        [[http.services.my-service.loadBalancer.servers]]
+          url = "http://private-ip-server-3/"
+    ```
 
 ## Mirroring
 
@@ -271,7 +460,7 @@ The mirroring is able to mirror requests sent to a service to other services. Pl
     
 !!! info "Supported Providers"
 
-    This strategy can be defined currently with the [File](../../../install-configuration/providers/others/file.md) or [IngressRoute](../../../install-configuration/providers/kubernetes/kubernetes-ingress.md) providers.
+    This strategy can be defined currently with the [File](../../../install-configuration/providers/others/file.md) or [IngressRoute](../../../install-configuration/providers/kubernetes/kubernetes-crd.md) providers.
     
 ```yaml tab="Structured (YAML)"
 ## Dynamic configuration

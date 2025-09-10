@@ -97,7 +97,7 @@ See the [Docker Swarm API Access](#docker-api-access) section for more informati
     ```
 
     ```bash tab="CLI"
-    --providers.docker.endpoint=unix:///var/run/docker.sock
+    --providers.swarm.endpoint=unix:///var/run/docker.sock
     # ...
     ```
 
@@ -275,6 +275,10 @@ created. If the expression is empty, all detected containers are included.
 
 The expression syntax is based on the `Label("key", "value")`, and `LabelRegex("key", "value")` functions,
 as well as the usual boolean logic, as shown in examples below.
+
+!!! tip "Constraints key limitations"
+
+    Note that `traefik.*` is a reserved label namespace for configuration and can not be used as a key for custom constraints.
 
 ??? example "Constraints Expression Examples"
 

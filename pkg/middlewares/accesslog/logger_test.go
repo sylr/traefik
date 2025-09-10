@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 	ptypes "github.com/traefik/paerser/types"
 	"github.com/traefik/traefik/v3/pkg/middlewares/capture"
+	"github.com/traefik/traefik/v3/pkg/middlewares/observability"
 	"github.com/traefik/traefik/v3/pkg/types"
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
 	"go.opentelemetry.io/otel/attribute"
@@ -55,72 +56,131 @@ var (
 	testStart               = time.Now()
 )
 
-func TestOTelAccessLog(t *testing.T) {
-	logCh := make(chan string)
-	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gzr, err := gzip.NewReader(r.Body)
-		require.NoError(t, err)
+func TestOTelAccessLogWithBody(t *testing.T) {
+	testCases := []struct {
+		desc        string
+		format      string
+		bodyCheckFn func(*testing.T, string)
+	}{
+		{
+			desc:   "Common format with log body",
+			format: CommonFormat,
+			bodyCheckFn: func(t *testing.T, log string) {
+				t.Helper()
 
-		body, err := io.ReadAll(gzr)
-		require.NoError(t, err)
+				// For common format, verify the body contains the Traefik common log formatted string
+				assert.Regexp(t, `"body":{"stringValue":".*- /health -.*200.*[0-9]+ms.*"}`, log)
+			},
+		},
+		{
+			desc:   "Generic CLF format with log body",
+			format: GenericCLFFormat,
+			bodyCheckFn: func(t *testing.T, log string) {
+				t.Helper()
 
-		req := plogotlp.NewExportRequest()
-		err = req.UnmarshalProto(body)
-		require.NoError(t, err)
+				// For generic CLF format, verify the body contains the CLF formatted string
+				assert.Regexp(t, `"body":{"stringValue":".*- /health -.*200.*"}`, log)
+			},
+		},
+		{
+			desc:   "JSON format with log body",
+			format: JSONFormat,
+			bodyCheckFn: func(t *testing.T, log string) {
+				t.Helper()
 
-		marshalledReq, err := json.Marshal(req)
-		require.NoError(t, err)
-
-		logCh <- string(marshalledReq)
-	}))
-	t.Cleanup(collector.Close)
-
-	config := &types.AccessLog{
-		OTLP: &types.OTelLog{
-			ServiceName:        "test",
-			ResourceAttributes: map[string]string{"resource": "attribute"},
-			HTTP: &types.OTelHTTP{
-				Endpoint: collector.URL,
+				// For JSON format, verify the body contains the JSON formatted string
+				assert.Regexp(t, `"body":{"stringValue":".*DownstreamStatus.*:200.*"}`, log)
 			},
 		},
 	}
-	logHandler, err := NewHandler(config)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := logHandler.Close()
-		require.NoError(t, err)
-	})
 
-	req := &http.Request{
-		Header: map[string][]string{},
-		URL: &url.URL{
-			Path: testPath,
-		},
-	}
-	ctx := trace.ContextWithSpanContext(t.Context(), trace.NewSpanContext(trace.SpanContextConfig{
-		TraceID: trace.TraceID{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8},
-		SpanID:  trace.SpanID{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8},
-	}))
-	req = req.WithContext(ctx)
+	for _, test := range testCases {
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
 
-	chain := alice.New()
-	chain = chain.Append(capture.Wrap)
-	chain = chain.Append(WrapHandler(logHandler))
-	handler, err := chain.Then(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		rw.WriteHeader(http.StatusOK)
-	}))
-	require.NoError(t, err)
-	handler.ServeHTTP(httptest.NewRecorder(), req)
+			logCh := make(chan string)
+			collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gzr, err := gzip.NewReader(r.Body)
+				require.NoError(t, err)
 
-	select {
-	case <-time.After(5 * time.Second):
-		t.Error("AccessLog not exported")
+				body, err := io.ReadAll(gzr)
+				require.NoError(t, err)
 
-	case log := <-logCh:
-		assert.Regexp(t, `{"key":"resource","value":{"stringValue":"attribute"}}`, log)
-		assert.Regexp(t, `{"key":"service.name","value":{"stringValue":"test"}}`, log)
-		assert.Regexp(t, `{"key":"DownstreamStatus","value":{"intValue":"200"}}`, log)
-		assert.Regexp(t, `"traceId":"01020304050607080000000000000000","spanId":"0102030405060708"`, log)
+				req := plogotlp.NewExportRequest()
+				err = req.UnmarshalProto(body)
+				require.NoError(t, err)
+
+				marshalledReq, err := json.Marshal(req)
+				require.NoError(t, err)
+
+				logCh <- string(marshalledReq)
+			}))
+			t.Cleanup(collector.Close)
+
+			config := &types.AccessLog{
+				Format: test.format,
+				OTLP: &types.OTelLog{
+					ServiceName:        "test",
+					ResourceAttributes: map[string]string{"resource": "attribute"},
+					HTTP: &types.OTelHTTP{
+						Endpoint: collector.URL,
+					},
+				},
+			}
+			logHandler, err := NewHandler(t.Context(), config)
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				err := logHandler.Close()
+				require.NoError(t, err)
+			})
+
+			req := &http.Request{
+				Header: map[string][]string{},
+				URL: &url.URL{
+					Path: "/health",
+				},
+			}
+			ctx := trace.ContextWithSpanContext(t.Context(), trace.NewSpanContext(trace.SpanContextConfig{
+				TraceID: trace.TraceID{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8},
+				SpanID:  trace.SpanID{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8},
+			}))
+			req = req.WithContext(ctx)
+
+			chain := alice.New()
+			chain = chain.Append(capture.Wrap)
+
+			// Injection of the observability variables in the request context.
+			chain = chain.Append(func(next http.Handler) (http.Handler, error) {
+				return observability.WithObservabilityHandler(next, observability.Observability{
+					AccessLogsEnabled: true,
+				}), nil
+			})
+
+			chain = chain.Append(logHandler.AliceConstructor())
+			handler, err := chain.Then(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				rw.WriteHeader(http.StatusOK)
+			}))
+			require.NoError(t, err)
+			handler.ServeHTTP(httptest.NewRecorder(), req)
+
+			select {
+			case <-time.After(5 * time.Second):
+				t.Error("AccessLog not exported")
+
+			case log := <-logCh:
+				// Verify basic OTLP structure
+				assert.Regexp(t, `{"key":"resource","value":{"stringValue":"attribute"}}`, log)
+				assert.Regexp(t, `{"key":"service.name","value":{"stringValue":"test"}}`, log)
+				assert.Regexp(t, `{"key":"DownstreamStatus","value":{"intValue":"200"}}`, log)
+				assert.Regexp(t, `"traceId":"01020304050607080000000000000000","spanId":"0102030405060708"`, log)
+
+				// Most importantly, verify the log body is populated (not empty)
+				assert.NotRegexp(t, `"body":{"stringValue":""}`, log, "Log body should not be empty when OTLP is configured")
+
+				// Run format-specific body checks
+				test.bodyCheckFn(t, log)
+			}
+		})
 	}
 }
 
@@ -129,7 +189,7 @@ func TestLogRotation(t *testing.T) {
 	rotatedFileName := fileName + ".rotated"
 
 	config := &types.AccessLog{FilePath: fileName, Format: CommonFormat}
-	logHandler, err := NewHandler(config)
+	logHandler, err := NewHandler(t.Context(), config)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err := logHandler.Close()
@@ -138,7 +198,15 @@ func TestLogRotation(t *testing.T) {
 
 	chain := alice.New()
 	chain = chain.Append(capture.Wrap)
-	chain = chain.Append(WrapHandler(logHandler))
+
+	// Injection of the observability variables in the request context.
+	chain = chain.Append(func(next http.Handler) (http.Handler, error) {
+		return observability.WithObservabilityHandler(next, observability.Observability{
+			AccessLogsEnabled: true,
+		}), nil
+	})
+
+	chain = chain.Append(logHandler.AliceConstructor())
 	handler, err := chain.Then(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusOK)
 	}))
@@ -265,7 +333,7 @@ func TestLoggerHeaderFields(t *testing.T) {
 				Fields:   &test.accessLogFields,
 			}
 
-			logger, err := NewHandler(config)
+			logger, err := NewHandler(t.Context(), config)
 			require.NoError(t, err)
 			t.Cleanup(func() {
 				err := logger.Close()
@@ -290,7 +358,15 @@ func TestLoggerHeaderFields(t *testing.T) {
 
 			chain := alice.New()
 			chain = chain.Append(capture.Wrap)
-			chain = chain.Append(WrapHandler(logger))
+
+			// Injection of the observability variables in the request context.
+			chain = chain.Append(func(next http.Handler) (http.Handler, error) {
+				return observability.WithObservabilityHandler(next, observability.Observability{
+					AccessLogsEnabled: true,
+				}), nil
+			})
+
+			chain = chain.Append(logger.AliceConstructor())
 			handler, err := chain.Then(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 				rw.WriteHeader(http.StatusOK)
 			}))
@@ -309,7 +385,7 @@ func TestLoggerHeaderFields(t *testing.T) {
 	}
 }
 
-func TestLoggerCLF(t *testing.T) {
+func TestCommonLogger(t *testing.T) {
 	logFilePath := filepath.Join(t.TempDir(), logFileNameSuffix)
 	config := &types.AccessLog{FilePath: logFilePath, Format: CommonFormat}
 	doLogging(t, config, false)
@@ -318,10 +394,10 @@ func TestLoggerCLF(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedLog := ` TestHost - TestUser [13/Apr/2016:07:14:19 -0700] "POST testpath HTTP/0.0" 123 12 "testReferer" "testUserAgent" 1 "testRouter" "http://127.0.0.1/testService" 1ms`
-	assertValidLogData(t, expectedLog, logData)
+	assertValidCommonLogData(t, expectedLog, logData)
 }
 
-func TestLoggerCLFWithBufferingSize(t *testing.T) {
+func TestCommonLoggerWithBufferingSize(t *testing.T) {
 	logFilePath := filepath.Join(t.TempDir(), logFileNameSuffix)
 	config := &types.AccessLog{FilePath: logFilePath, Format: CommonFormat, BufferingSize: 1024}
 	doLogging(t, config, false)
@@ -333,7 +409,34 @@ func TestLoggerCLFWithBufferingSize(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedLog := ` TestHost - TestUser [13/Apr/2016:07:14:19 -0700] "POST testpath HTTP/0.0" 123 12 "testReferer" "testUserAgent" 1 "testRouter" "http://127.0.0.1/testService" 1ms`
-	assertValidLogData(t, expectedLog, logData)
+	assertValidCommonLogData(t, expectedLog, logData)
+}
+
+func TestLoggerGenericCLF(t *testing.T) {
+	logFilePath := filepath.Join(t.TempDir(), logFileNameSuffix)
+	config := &types.AccessLog{FilePath: logFilePath, Format: GenericCLFFormat}
+	doLogging(t, config, false)
+
+	logData, err := os.ReadFile(logFilePath)
+	require.NoError(t, err)
+
+	expectedLog := ` TestHost - TestUser [13/Apr/2016:07:14:19 -0700] "POST testpath HTTP/0.0" 123 12 "testReferer" "testUserAgent"`
+	assertValidGenericCLFLogData(t, expectedLog, logData)
+}
+
+func TestLoggerGenericCLFWithBufferingSize(t *testing.T) {
+	logFilePath := filepath.Join(t.TempDir(), logFileNameSuffix)
+	config := &types.AccessLog{FilePath: logFilePath, Format: GenericCLFFormat, BufferingSize: 1024}
+	doLogging(t, config, false)
+
+	// wait a bit for the buffer to be written in the file.
+	time.Sleep(50 * time.Millisecond)
+
+	logData, err := os.ReadFile(logFilePath)
+	require.NoError(t, err)
+
+	expectedLog := ` TestHost - TestUser [13/Apr/2016:07:14:19 -0700] "POST testpath HTTP/0.0" 123 12 "testReferer" "testUserAgent"`
+	assertValidGenericCLFLogData(t, expectedLog, logData)
 }
 
 func assertString(exp string) func(t *testing.T, actual interface{}) {
@@ -897,12 +1000,12 @@ func TestNewLogHandlerOutputStdout(t *testing.T) {
 
 			written, err := os.ReadFile(file.Name())
 			require.NoError(t, err, "unable to read captured stdout from file")
-			assertValidLogData(t, test.expectedLog, written)
+			assertValidCommonLogData(t, test.expectedLog, written)
 		})
 	}
 }
 
-func assertValidLogData(t *testing.T, expected string, logData []byte) {
+func assertValidCommonLogData(t *testing.T, expected string, logData []byte) {
 	t.Helper()
 
 	if len(expected) == 0 {
@@ -935,6 +1038,35 @@ func assertValidLogData(t *testing.T, expected string, logData []byte) {
 	assert.Regexp(t, `\d*ms`, result[Duration], formatErrMessage)
 }
 
+func assertValidGenericCLFLogData(t *testing.T, expected string, logData []byte) {
+	t.Helper()
+
+	if len(expected) == 0 {
+		assert.Empty(t, logData)
+		t.Log(string(logData))
+		return
+	}
+
+	result, err := ParseAccessLog(string(logData))
+	require.NoError(t, err)
+
+	resultExpected, err := ParseAccessLog(expected)
+	require.NoError(t, err)
+
+	formatErrMessage := fmt.Sprintf("Expected:\t%q\nActual:\t%q", expected, string(logData))
+
+	require.Len(t, result, len(resultExpected), formatErrMessage)
+	assert.Equal(t, resultExpected[ClientHost], result[ClientHost], formatErrMessage)
+	assert.Equal(t, resultExpected[ClientUsername], result[ClientUsername], formatErrMessage)
+	assert.Equal(t, resultExpected[RequestMethod], result[RequestMethod], formatErrMessage)
+	assert.Equal(t, resultExpected[RequestPath], result[RequestPath], formatErrMessage)
+	assert.Equal(t, resultExpected[RequestProtocol], result[RequestProtocol], formatErrMessage)
+	assert.Equal(t, resultExpected[OriginStatus], result[OriginStatus], formatErrMessage)
+	assert.Equal(t, resultExpected[OriginContentSize], result[OriginContentSize], formatErrMessage)
+	assert.Equal(t, resultExpected[RequestRefererHeader], result[RequestRefererHeader], formatErrMessage)
+	assert.Equal(t, resultExpected[RequestUserAgentHeader], result[RequestUserAgentHeader], formatErrMessage)
+}
+
 func captureStdout(t *testing.T) (out *os.File, restoreStdout func()) {
 	t.Helper()
 
@@ -954,7 +1086,7 @@ func captureStdout(t *testing.T) (out *os.File, restoreStdout func()) {
 
 func doLoggingTLSOpt(t *testing.T, config *types.AccessLog, enableTLS, tracing bool) {
 	t.Helper()
-	logger, err := NewHandler(config)
+	logger, err := NewHandler(t.Context(), config)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err := logger.Close()
@@ -998,7 +1130,15 @@ func doLoggingTLSOpt(t *testing.T, config *types.AccessLog, enableTLS, tracing b
 
 	chain := alice.New()
 	chain = chain.Append(capture.Wrap)
-	chain = chain.Append(WrapHandler(logger))
+
+	// Injection of the observability variables in the request context.
+	chain = chain.Append(func(next http.Handler) (http.Handler, error) {
+		return observability.WithObservabilityHandler(next, observability.Observability{
+			AccessLogsEnabled: true,
+		}), nil
+	})
+
+	chain = chain.Append(logger.AliceConstructor())
 	handler, err := chain.Then(http.HandlerFunc(logWriterTestHandlerFunc))
 	require.NoError(t, err)
 
@@ -1043,7 +1183,7 @@ func logWriterTestHandlerFunc(rw http.ResponseWriter, r *http.Request) {
 func doLoggingWithAbortedStream(t *testing.T, config *types.AccessLog) {
 	t.Helper()
 
-	logger, err := NewHandler(config)
+	logger, err := NewHandler(t.Context(), config)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err := logger.Close()
@@ -1085,7 +1225,15 @@ func doLoggingWithAbortedStream(t *testing.T, config *types.AccessLog) {
 		}), nil
 	})
 	chain = chain.Append(capture.Wrap)
-	chain = chain.Append(WrapHandler(logger))
+
+	// Injection of the observability variables in the request context.
+	chain = chain.Append(func(next http.Handler) (http.Handler, error) {
+		return observability.WithObservabilityHandler(next, observability.Observability{
+			AccessLogsEnabled: true,
+		}), nil
+	})
+
+	chain = chain.Append(logger.AliceConstructor())
 
 	service := NewFieldHandler(http.HandlerFunc(streamBackend), ServiceURL, "http://stream", nil)
 	service = NewFieldHandler(service, ServiceAddr, "127.0.0.1", nil)

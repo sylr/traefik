@@ -1280,6 +1280,11 @@ func (in *ServerHealthCheck) DeepCopyInto(out *ServerHealthCheck) {
 		*out = new(intstr.IntOrString)
 		**out = **in
 	}
+	if in.UnhealthyInterval != nil {
+		in, out := &in.UnhealthyInterval, &out.UnhealthyInterval
+		*out = new(intstr.IntOrString)
+		**out = **in
+	}
 	if in.Timeout != nil {
 		in, out := &in.Timeout, &out.Timeout
 		*out = new(intstr.IntOrString)
@@ -1484,6 +1489,11 @@ func (in *ServersTransportTCPSpec) DeepCopyInto(out *ServersTransportTCPSpec) {
 	if in.DialKeepAlive != nil {
 		in, out := &in.DialKeepAlive, &out.DialKeepAlive
 		*out = new(intstr.IntOrString)
+		**out = **in
+	}
+	if in.ProxyProtocol != nil {
+		in, out := &in.ProxyProtocol, &out.ProxyProtocol
+		*out = new(dynamic.ProxyProtocol)
 		**out = **in
 	}
 	if in.TerminationDelay != nil {

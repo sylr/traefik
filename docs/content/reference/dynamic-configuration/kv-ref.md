@@ -199,6 +199,7 @@ THIS FILE MUST NOT BE EDITED BY HAND
 | `traefik/http/routers/Router0/middlewares/1` | `foobar` |
 | `traefik/http/routers/Router0/observability/accessLogs` | `true` |
 | `traefik/http/routers/Router0/observability/metrics` | `true` |
+| `traefik/http/routers/Router0/observability/traceVerbosity` | `foobar` |
 | `traefik/http/routers/Router0/observability/tracing` | `true` |
 | `traefik/http/routers/Router0/priority` | `42` |
 | `traefik/http/routers/Router0/rule` | `foobar` |
@@ -218,6 +219,7 @@ THIS FILE MUST NOT BE EDITED BY HAND
 | `traefik/http/routers/Router1/middlewares/1` | `foobar` |
 | `traefik/http/routers/Router1/observability/accessLogs` | `true` |
 | `traefik/http/routers/Router1/observability/metrics` | `true` |
+| `traefik/http/routers/Router1/observability/traceVerbosity` | `foobar` |
 | `traefik/http/routers/Router1/observability/tracing` | `true` |
 | `traefik/http/routers/Router1/priority` | `42` |
 | `traefik/http/routers/Router1/rule` | `foobar` |
@@ -284,6 +286,7 @@ THIS FILE MUST NOT BE EDITED BY HAND
 | `traefik/http/services/Service02/loadBalancer/healthCheck/scheme` | `foobar` |
 | `traefik/http/services/Service02/loadBalancer/healthCheck/status` | `42` |
 | `traefik/http/services/Service02/loadBalancer/healthCheck/timeout` | `42s` |
+| `traefik/http/services/Service02/loadBalancer/healthCheck/unhealthyInterval` | `42s` |
 | `traefik/http/services/Service02/loadBalancer/passHostHeader` | `true` |
 | `traefik/http/services/Service02/loadBalancer/responseForwarding/flushInterval` | `42s` |
 | `traefik/http/services/Service02/loadBalancer/servers/0/preservePath` | `true` |
@@ -362,6 +365,7 @@ THIS FILE MUST NOT BE EDITED BY HAND
 | `traefik/tcp/routers/TCPRouter1/tls/passthrough` | `true` |
 | `traefik/tcp/serversTransports/TCPServersTransport0/dialKeepAlive` | `42s` |
 | `traefik/tcp/serversTransports/TCPServersTransport0/dialTimeout` | `42s` |
+| `traefik/tcp/serversTransports/TCPServersTransport0/proxyProtocol/version` | `42` |
 | `traefik/tcp/serversTransports/TCPServersTransport0/terminationDelay` | `42s` |
 | `traefik/tcp/serversTransports/TCPServersTransport0/tls/certificates/0/certFile` | `foobar` |
 | `traefik/tcp/serversTransports/TCPServersTransport0/tls/certificates/0/keyFile` | `foobar` |
@@ -377,6 +381,7 @@ THIS FILE MUST NOT BE EDITED BY HAND
 | `traefik/tcp/serversTransports/TCPServersTransport0/tls/spiffe/trustDomain` | `foobar` |
 | `traefik/tcp/serversTransports/TCPServersTransport1/dialKeepAlive` | `42s` |
 | `traefik/tcp/serversTransports/TCPServersTransport1/dialTimeout` | `42s` |
+| `traefik/tcp/serversTransports/TCPServersTransport1/proxyProtocol/version` | `42` |
 | `traefik/tcp/serversTransports/TCPServersTransport1/terminationDelay` | `42s` |
 | `traefik/tcp/serversTransports/TCPServersTransport1/tls/certificates/0/certFile` | `foobar` |
 | `traefik/tcp/serversTransports/TCPServersTransport1/tls/certificates/0/keyFile` | `foobar` |

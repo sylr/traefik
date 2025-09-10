@@ -46,7 +46,7 @@ dist:
 .PHONY: build-webui-image
 #? build-webui-image: Build WebUI Docker image
 build-webui-image:
-	docker build -t traefik-webui -f webui/Dockerfile webui
+	docker build -t traefik-webui -f webui/buildx.Dockerfile webui
 
 .PHONY: clean-webui
 #? clean-webui: Clean WebUI static generated assets
@@ -74,8 +74,9 @@ push-multi-arch-image:
 ## Generate WebUI
 webui/static/index.html:
 	$(MAKE) build-webui-image
-	docker run --rm -v "$(PWD)/webui/static":'/src/webui/static' traefik-webui npm run build:nc
+	docker run --rm -v "$(PWD)/webui/static":'/src/webui/static' traefik-webui yarn build:prod
 	docker run --rm -v "$(PWD)/webui/static":'/src/webui/static' traefik-webui chown -R $(shell id -u):$(shell id -g) ./static
+	printf 'For more information see `webui/readme.md`' > webui/static/DONT-EDIT-FILES-IN-THIS-DIRECTORY.md
 
 .PHONY: generate-webui
 #? generate-webui: Generate WebUI
@@ -90,11 +91,11 @@ generate:
 #? binary: Build the binary
 binary: generate-webui dist
 	@echo SHA: $(VERSION) $(CODENAME) $(DATE)
-	CGO_ENABLED=0 GOGC=$(GOGC) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) GOAMD64=$(GOAMD64) $(GO) build ${FLAGS[*]} -ldflags "-s -w \
+	CGO_ENABLED=0 GOGC=$(GOGC) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(patsubst v%,%,$(GOARM)) GOARM64=$(GOARM64) GOAMD64=$(GOAMD64) $(GO) build ${FLAGS[*]} -ldflags "-s -w \
     -X github.com/traefik/traefik/v3/pkg/version.Version=$(VERSION) \
     -X github.com/traefik/traefik/v3/pkg/version.Codename=$(CODENAME) \
     -X github.com/traefik/traefik/v3/pkg/version.BuildDate=$(DATE)" \
-    -installsuffix nocgo -o "./dist/${GOOS}/${GOARCH}/$(GOARM)$(GOAMD64)/$(BIN_NAME)" ./cmd/traefik
+    -installsuffix nocgo -o "./dist/$(GOOS)/$(GOARCH)/$(GOARM)$(GOARM64)$(GOAMD64)/$(BIN_NAME)" ./cmd/traefik
 
 binary-linux-arm64: export GOOS := linux
 binary-linux-arm64: export GOARCH := arm64
@@ -128,14 +129,14 @@ test-unit:
 
 .PHONY: test-integration
 #? test-integration: Run the integration tests
-test-integration: binary
+test-integration:
 	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO) test ./integration -test.timeout=20m -failfast -v $(TESTFLAGS)
 
 .PHONY: test-gateway-api-conformance
 #? test-gateway-api-conformance: Run the conformance tests
 test-gateway-api-conformance: build-image-dirty
 	# In case of a new Minor/Major version, the k8sConformanceTraefikVersion needs to be updated.
-	GOOS=$(GOOS) GOARCH=$(GOARCH) go test ./integration -v -test.run K8sConformanceSuite -k8sConformance -k8sConformanceTraefikVersion="v3.4" $(TESTFLAGS)
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go test ./integration -v -test.run K8sConformanceSuite -k8sConformance -k8sConformanceTraefikVersion="v3.5" $(TESTFLAGS)
 
 .PHONY: test-ui-unit
 #? test-ui-unit: Run the unit tests for the webui
@@ -215,11 +216,6 @@ generate-crd:
 #? generate-genconf: Generate code from dynamic configuration github.com/traefik/genconf
 generate-genconf:
 	go run ./cmd/internal/gen/
-
-.PHONY: release-packages
-#? release-packages: Create packages for the release
-release-packages: generate-webui
-	$(CURDIR)/script/release-packages.sh
 
 .PHONY: fmt
 #? fmt: Format the Code

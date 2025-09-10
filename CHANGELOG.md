@@ -1,3 +1,143 @@
+## [v3.5.2](https://github.com/traefik/traefik/tree/v3.5.2) (2025-09-09)
+[All Commits](https://github.com/traefik/traefik/compare/v3.5.1...v3.5.2)
+
+**Bug fixes:**
+- **[middleware,accesslogs]** Add GenericCLF log format for access logs ([#12033](https://github.com/traefik/traefik/pull/12033) by [sdelicata](https://github.com/sdelicata))
+- **[middleware]** Fix customerrors query url replacement ([#11876](https://github.com/traefik/traefik/pull/11876) by [DorianBlues](https://github.com/DorianBlues))
+- **[tls,service]** Send proxy protocol header before TLS handshake ([#11956](https://github.com/traefik/traefik/pull/11956) by [rtribotte](https://github.com/rtribotte))
+- **[webui]** Restore empty webui/static to use traefik as library ([#12025](https://github.com/traefik/traefik/pull/12025) by [youkoulayley](https://github.com/youkoulayley))
+
+**Documentation:**
+- **[accesslogs]** Fix path for access-logs header config ([#12030](https://github.com/traefik/traefik/pull/12030) by [cgatt](https://github.com/cgatt))
+- **[acme]** Fixes typo for OCSP in CLI example ([#12039](https://github.com/traefik/traefik/pull/12039) by [mloiseleur](https://github.com/mloiseleur))
+- **[docker/swarm]** Fixes typo for Swarm mode in CLI example ([#12038](https://github.com/traefik/traefik/pull/12038) by [BilalBudhani](https://github.com/BilalBudhani))
+- **[kv]** Fix broken links in KV store documentation ([#12040](https://github.com/traefik/traefik/pull/12040) by [sheddy-traefik](https://github.com/sheddy-traefik))
+- **[middleware]** Add redis options to ratelimit middleware &amp; Include distributed rate limit middleware ([#12041](https://github.com/traefik/traefik/pull/12041) by [sheddy-traefik](https://github.com/sheddy-traefik))
+- **[server]** Fix link to HTTP3 section in documentation ([#12028](https://github.com/traefik/traefik/pull/12028) by [vincentbernat](https://github.com/vincentbernat))
+- Fix migration path in documentation ([#12032](https://github.com/traefik/traefik/pull/12032) by [nmengin](https://github.com/nmengin))
+
+## [v3.5.1](https://github.com/traefik/traefik/tree/v3.5.1) (2025-08-27)
+[All Commits](https://github.com/traefik/traefik/compare/v3.5.0...v3.5.1)
+
+**Bug fixes:**
+- **[accesslogs,otel]** Provide Log Body in OTEL access Log ([#11867](https://github.com/traefik/traefik/pull/11867) by [tomMoulard](https://github.com/tomMoulard))
+- **[acme]** Bump github.com/go-acme/lego/v4 to v4.25.1 ([#11882](https://github.com/traefik/traefik/pull/11882) by [ldez](https://github.com/ldez))
+- **[k8s/gatewayapi]** Make app protocol case insensitive ([#11989](https://github.com/traefik/traefik/pull/11989) by [shreealt](https://github.com/shreealt))
+- **[otel]** Fix misspelling in docs ([#11952](https://github.com/traefik/traefik/pull/11952) by [mmanciop](https://github.com/mmanciop))
+- **[server]** Bump to github.com/pires/go-proxyproto v0.8.1 ([#11991](https://github.com/traefik/traefik/pull/11991) by [rtribotte](https://github.com/rtribotte))
+- **[server]** Silent expected errors on receiving sigterm signal ([#11838](https://github.com/traefik/traefik/pull/11838) by [Kwuray](https://github.com/Kwuray))
+- **[tracing]** Fix capturedRequestHeaders and capturedResponseHeaders headers options not being canonicalized in tracing ([#12005](https://github.com/traefik/traefik/pull/12005) by [mcuelenaere](https://github.com/mcuelenaere))
+- **[tracing]** Follow OTel semantic conventions for root span naming ([#11673](https://github.com/traefik/traefik/pull/11673) by [Alex-Waring](https://github.com/Alex-Waring))
+- **[webui]** Update Traefik Proxy dashboard UI development deps ([#11958](https://github.com/traefik/traefik/pull/11958) by [mdeliatf](https://github.com/mdeliatf))
+- Refactor to use reflect.TypeFor ([#12010](https://github.com/traefik/traefik/pull/12010) by [cuiweixie](https://github.com/cuiweixie))
+
+**Documentation:**
+- **[docker]** Fix missing middleware application for whoami service in docker guide ([#12012](https://github.com/traefik/traefik/pull/12012) by [Copilot](https://github.com/apps/copilot-swe-agent))
+- **[k8s/gatewayapi]** Fix documentation to match new gateway-api selector syntax ([#12006](https://github.com/traefik/traefik/pull/12006) by [Firespray-31](https://github.com/Firespray-31))
+- **[middleware,hub]** Add Traefik Hub Middlewares To Reference Section ([#11937](https://github.com/traefik/traefik/pull/11937) by [sheddy-traefik](https://github.com/sheddy-traefik))
+- **[plugins]** Add extend documentation ([#11904](https://github.com/traefik/traefik/pull/11904) by [sheddy-traefik](https://github.com/sheddy-traefik))
+- Update Broken Links in the Migration Docs ([#12016](https://github.com/traefik/traefik/pull/12016) by [sheddy-traefik](https://github.com/sheddy-traefik))
+- Fix Documentation menu ([#12013](https://github.com/traefik/traefik/pull/12013) by [nmengin](https://github.com/nmengin))
+- Fix invalid links in documentation ([#11995](https://github.com/traefik/traefik/pull/11995) by [mloiseleur](https://github.com/mloiseleur))
+- Fix typo in index ([#11994](https://github.com/traefik/traefik/pull/11994) by [ignyx](https://github.com/ignyx))
+- Restore missing migration section ([#11973](https://github.com/traefik/traefik/pull/11973) by [rtribotte](https://github.com/rtribotte))
+- Clean Documentation ([#11945](https://github.com/traefik/traefik/pull/11945) by [nmengin](https://github.com/nmengin))
+- Add back the link to Peka&#39;s page ([#11942](https://github.com/traefik/traefik/pull/11942) by [kevinpollet](https://github.com/kevinpollet))
+
+**Misc:**
+- Merge branch v2.11 into v3.5 ([#12019](https://github.com/traefik/traefik/pull/12019) by [rtribotte](https://github.com/rtribotte))
+- Merge branch v2.11 into v3.5 ([#12017](https://github.com/traefik/traefik/pull/12017) by [rtribotte](https://github.com/rtribotte))
+- Merge branch v2.11 into v3.5 ([#11966](https://github.com/traefik/traefik/pull/11966) by [kevinpollet](https://github.com/kevinpollet))
+- Merge branch v3.4 into v3.5 ([#11953](https://github.com/traefik/traefik/pull/11953) by [rtribotte](https://github.com/rtribotte))
+
+## [v2.11.29](https://github.com/traefik/traefik/tree/v2.11.29) (2025-08-26)
+[All Commits](https://github.com/traefik/traefik/compare/v2.11.28...v2.11.29)
+
+**Bug fixes:**
+- **[acme]** Bump github.com/go-acme/lego/v4 to v4.25.2 ([#11983](https://github.com/traefik/traefik/pull/11983) by [ldez](https://github.com/ldez))
+- **[docker]** Bump github.com/docker/docker to v28.3.3 ([#12007](https://github.com/traefik/traefik/pull/12007) by [kevinpollet](https://github.com/kevinpollet))
+
+**Documentation:**
+- Fix invalid links in documentation ([#11960](https://github.com/traefik/traefik/pull/11960) by [mloiseleur](https://github.com/mloiseleur))
+- Update releases docs for v3.5 ([#11949](https://github.com/traefik/traefik/pull/11949) by [jnoordsij](https://github.com/jnoordsij))
+
+## [v3.5.0](https://github.com/traefik/traefik/tree/v3.5.0) (2025-07-23)
+[All Commits](https://github.com/traefik/traefik/compare/v3.5.0-rc1...v3.5.0)
+
+**Enhancements:**
+- **[acme]** OCSP stapling ([#8393](https://github.com/traefik/traefik/pull/8393) by [alekitto](https://github.com/alekitto))
+- **[acme]** Add acme.httpChallenge.delay option ([#11643](https://github.com/traefik/traefik/pull/11643) by [ldez](https://github.com/ldez))
+- **[acme]** Allow configuration of ACME provider http timeout ([#11637](https://github.com/traefik/traefik/pull/11637) by [tkw1536](https://github.com/tkw1536))
+- **[healthcheck]** Add url option to healthcheck command ([#11711](https://github.com/traefik/traefik/pull/11711) by [Nelwhix](https://github.com/Nelwhix))
+- **[healthcheck]** Add unhealthy Interval to the health check configuration ([#10610](https://github.com/traefik/traefik/pull/10610) by [sswastik02](https://github.com/sswastik02))
+- **[k8s/gatewayapi]** Bump sigs.k8s.io/gateway-api to v1.3.0 ([#11719](https://github.com/traefik/traefik/pull/11719) by [rtribotte](https://github.com/rtribotte))
+- **[k8s/ingress]** Make the behavior of prefix matching in Ingress consistent with Kubernetes doc ([#11203](https://github.com/traefik/traefik/pull/11203) by [charlie0129](https://github.com/charlie0129))
+- **[k8s]** NGINX Ingress Provider ([#11844](https://github.com/traefik/traefik/pull/11844) by [rtribotte](https://github.com/rtribotte))
+- **[middleware,authentication]** Handle context canceled in ForwardAuth middleware ([#11817](https://github.com/traefik/traefik/pull/11817) by [bengentree](https://github.com/bengentree))
+- **[plugins]** Ability to enable unsafe in yaegi through plugin manifest ([#11589](https://github.com/traefik/traefik/pull/11589) by [Rydez](https://github.com/Rydez))
+- **[tls]** Introduce X25519MLKEM768 for Post-Quantum-Secure TLS ([#11731](https://github.com/traefik/traefik/pull/11731) by [fzoli](https://github.com/fzoli))
+- **[webui]** Migrate Traefik Proxy dashboard UI to React ([#11674](https://github.com/traefik/traefik/pull/11674) by [gndz07](https://github.com/gndz07))
+- **[webui]** Improve visualization for StatusRewrites option of errors middleware ([#11806](https://github.com/traefik/traefik/pull/11806) by [sevensolutions](https://github.com/sevensolutions))
+
+**Bug fixes:**
+- **[healthcheck]** Revert 11711 adding url param to healthcheck command ([#11927](https://github.com/traefik/traefik/pull/11927) by [lbenguigui](https://github.com/lbenguigui))
+- **[logs,metrics,tracing,accesslogs,otel]** Add missing resource attributes detectors ([#11874](https://github.com/traefik/traefik/pull/11874) by [rtribotte](https://github.com/rtribotte))
+- **[logs,tracing,k8s,otel]** Add k8s resource attributes automatically ([#11906](https://github.com/traefik/traefik/pull/11906) by [kevinpollet](https://github.com/kevinpollet))
+- **[metrics,otel]** Add resourceAttributes option to OTel metrics ([#11908](https://github.com/traefik/traefik/pull/11908) by [kevinpollet](https://github.com/kevinpollet))
+- **[middleware,tracing]** Introduce trace verbosity config and produce less spans by default ([#11870](https://github.com/traefik/traefik/pull/11870) by [rtribotte](https://github.com/rtribotte))
+
+**Documentation:**
+- **[docker,ecs,docker/swarm,consulcatalog,nomad]** Add constraints key limitations for label providers ([#11893](https://github.com/traefik/traefik/pull/11893) by [bluepuma77](https://github.com/bluepuma77))
+- **[k8s]** Add extended NGinX annotation support documentation ([#11920](https://github.com/traefik/traefik/pull/11920) by [nmengin](https://github.com/nmengin))
+- Remove dead link to Peka blog ([#11934](https://github.com/traefik/traefik/pull/11934) by [kevinpollet](https://github.com/kevinpollet))
+- Prepare release v3.5.0-rc2 ([#11899](https://github.com/traefik/traefik/pull/11899) by [kevinpollet](https://github.com/kevinpollet))
+- Prepare release v3.5.0-rc1 ([#11865](https://github.com/traefik/traefik/pull/11865) by [rtribotte](https://github.com/rtribotte))
+
+**Misc:**
+- Merge branch v3.4 into v3.5 ([#11933](https://github.com/traefik/traefik/pull/11933) by [rtribotte](https://github.com/rtribotte))
+- Merge branch v3.4 into v3.5 ([#11898](https://github.com/traefik/traefik/pull/11898) by [kevinpollet](https://github.com/kevinpollet))
+- Merge branch v3.4 into master ([#11863](https://github.com/traefik/traefik/pull/11863) by [rtribotte](https://github.com/rtribotte))
+- Merge branch v3.4 into master ([#11861](https://github.com/traefik/traefik/pull/11861) by [rtribotte](https://github.com/rtribotte))
+- Merge branch v3.4 into master ([#11857](https://github.com/traefik/traefik/pull/11857) by [rtribotte](https://github.com/rtribotte))
+- Merge branch v3.4 into master ([#11855](https://github.com/traefik/traefik/pull/11855) by [rtribotte](https://github.com/rtribotte))
+- Merge branch v3.4 into master ([#11813](https://github.com/traefik/traefik/pull/11813) by [kevinpollet](https://github.com/kevinpollet))
+- Merge branch v3.4 into master ([#11758](https://github.com/traefik/traefik/pull/11758) by [mmatur](https://github.com/mmatur))
+- Merge v3.4 into master ([#11752](https://github.com/traefik/traefik/pull/11752) by [mmatur](https://github.com/mmatur))
+- Merge branch v3.4 into master ([#11708](https://github.com/traefik/traefik/pull/11708) by [kevinpollet](https://github.com/kevinpollet))
+
+## [v3.4.5](https://github.com/traefik/traefik/tree/v3.4.5) (2025-07-23)
+[All Commits](https://github.com/traefik/traefik/compare/v3.4.4...v3.4.5)
+
+**Bug fixes:**
+- **[http3]** Bump github.com/quic-go/quic-go to v0.54.0 ([#11919](https://github.com/traefik/traefik/pull/11919) by [GreyXor](https://github.com/GreyXor))
+
+**Documentation:**
+- Fix typo in entrypoints page ([#11914](https://github.com/traefik/traefik/pull/11914) by [adk-swisstopo](https://github.com/adk-swisstopo))
+
+**Misc:**
+- Merge branch v2.11 into v3.4 ([#11930](https://github.com/traefik/traefik/pull/11930) by [kevinpollet](https://github.com/kevinpollet))
+- Merge branch v2.11 into v3.4 ([#11926](https://github.com/traefik/traefik/pull/11926) by [rtribotte](https://github.com/rtribotte))
+
+## [v2.11.28](https://github.com/traefik/traefik/tree/v2.11.28) (2025-07-23)
+[All Commits](https://github.com/traefik/traefik/compare/v2.11.27...v2.11.28)
+
+**Bug fixes:**
+- **[logs]** Redact logged install configuration ([#11907](https://github.com/traefik/traefik/pull/11907) by [jspdown](https://github.com/jspdown))
+- **[plugins]** Fix client arbitrary file access during archive extraction zipslip ([#11911](https://github.com/traefik/traefik/pull/11911) by [odaysec](https://github.com/odaysec))
+- **[server]** Disable MPTCP by default ([#11918](https://github.com/traefik/traefik/pull/11918) by [rtribotte](https://github.com/rtribotte))
+
+**Documentation:**
+- **[k8s/crd,k8s]** Remove all mentions of ordering for TLSOption CurvePreferences field ([#11924](https://github.com/traefik/traefik/pull/11924) by [jnoordsij](https://github.com/jnoordsij))
+
+## [v3.5.0-rc2](https://github.com/traefik/traefik/tree/v3.5.0-rc2) (2025-07-11)
+[All Commits](https://github.com/traefik/traefik/compare/v3.5.0-rc1...v3.5.0-rc2)
+
+**Bug fixes:**
+- **[logs,metrics,tracing,accesslogs,otel]** Add missing resource attributes detectors ([#11874](https://github.com/traefik/traefik/pull/11874) by [rtribotte](https://github.com/rtribotte))
+
+**Misc:**
+- Merge branch v3.4 into v3.5 ([#11898](https://github.com/traefik/traefik/pull/11898) by [kevinpollet](https://github.com/kevinpollet))
+
 ## [v3.4.4](https://github.com/traefik/traefik/tree/v3.4.4) (2025-07-11)
 [All Commits](https://github.com/traefik/traefik/compare/v3.4.3...v3.4.4)
 
@@ -20,6 +160,34 @@
 
 **Bug fixes:**
 - Bump github.com/go-viper/mapstructure/v2 to v2.3.0 ([#11880](https://github.com/traefik/traefik/pull/11880) by [kevinpollet](https://github.com/kevinpollet))
+
+## [v3.5.0-rc1](https://github.com/traefik/traefik/tree/v3.5.0-rc1) (2025-06-26)
+[All Commits](https://github.com/traefik/traefik/compare/v3.4.0-rc1...v3.5.0-rc1)
+
+**Enhancements:**
+- **[acme]** OCSP stapling ([#8393](https://github.com/traefik/traefik/pull/8393) by [alekitto](https://github.com/alekitto))
+- **[acme]** Add acme.httpChallenge.delay option ([#11643](https://github.com/traefik/traefik/pull/11643) by [ldez](https://github.com/ldez))
+- **[acme]** Allow configuration of ACME provider http timeout ([#11637](https://github.com/traefik/traefik/pull/11637) by [tkw1536](https://github.com/tkw1536))
+- **[healthcheck]** Add url option to healthcheck command ([#11711](https://github.com/traefik/traefik/pull/11711) by [Nelwhix](https://github.com/Nelwhix))
+- **[healthcheck]** Add unhealthy Interval to the health check configuration ([#10610](https://github.com/traefik/traefik/pull/10610) by [sswastik02](https://github.com/sswastik02))
+- **[k8s/gatewayapi]** Bump sigs.k8s.io/gateway-api to v1.3.0 ([#11719](https://github.com/traefik/traefik/pull/11719) by [rtribotte](https://github.com/rtribotte))
+- **[k8s/ingress]** Make the behavior of prefix matching in Ingress consistent with Kubernetes doc ([#11203](https://github.com/traefik/traefik/pull/11203) by [charlie0129](https://github.com/charlie0129))
+- **[k8s]** NGINX Ingress Provider ([#11844](https://github.com/traefik/traefik/pull/11844) by [rtribotte](https://github.com/rtribotte))
+- **[middleware,authentication]** Handle context canceled in ForwardAuth middleware ([#11817](https://github.com/traefik/traefik/pull/11817) by [bengentree](https://github.com/bengentree))
+- **[plugins]** Ability to enable unsafe in yaegi through plugin manifest ([#11589](https://github.com/traefik/traefik/pull/11589) by [Rydez](https://github.com/Rydez))
+- **[tls]** Introduce X25519MLKEM768 for Post-Quantum-Secure TLS ([#11731](https://github.com/traefik/traefik/pull/11731) by [fzoli](https://github.com/fzoli))
+- **[webui]** Migrate Traefik Proxy dashboard UI to React ([#11674](https://github.com/traefik/traefik/pull/11674) by [gndz07](https://github.com/gndz07))
+- **[webui]** Improve visualization for StatusRewrites option of errors middleware ([#11806](https://github.com/traefik/traefik/pull/11806) by [sevensolutions](https://github.com/sevensolutions))
+
+**Misc:**
+- Merge branch v3.4 into master ([#11863](https://github.com/traefik/traefik/pull/11863) by [rtribotte](https://github.com/rtribotte))
+- Merge branch v3.4 into master ([#11861](https://github.com/traefik/traefik/pull/11861) by [rtribotte](https://github.com/rtribotte))
+- Merge branch v3.4 into master ([#11857](https://github.com/traefik/traefik/pull/11857) by [rtribotte](https://github.com/rtribotte))
+- Merge branch v3.4 into master ([#11855](https://github.com/traefik/traefik/pull/11855) by [rtribotte](https://github.com/rtribotte))
+- Merge branch v3.4 into master ([#11813](https://github.com/traefik/traefik/pull/11813) by [kevinpollet](https://github.com/kevinpollet))
+- Merge branch v3.4 into master ([#11758](https://github.com/traefik/traefik/pull/11758) by [mmatur](https://github.com/mmatur))
+- Merge v3.4 into master ([#11752](https://github.com/traefik/traefik/pull/11752) by [mmatur](https://github.com/mmatur))
+- Merge branch v3.4 into master ([#11708](https://github.com/traefik/traefik/pull/11708) by [kevinpollet](https://github.com/kevinpollet))
 
 ## [v3.4.3](https://github.com/traefik/traefik/tree/v3.4.3) (2025-06-26)
 [All Commits](https://github.com/traefik/traefik/compare/v3.4.2...v3.4.3)

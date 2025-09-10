@@ -7,7 +7,6 @@
     </picture>
 </p>
 
-[![Build Status SemaphoreCI](https://traefik-oss.semaphoreci.com/badges/traefik/branches/master.svg?style=shields)](https://traefik-oss.semaphoreci.com/projects/traefik)
 [![Docs](https://img.shields.io/badge/docs-current-brightgreen.svg)](https://doc.traefik.io/traefik)
 [![Go Report Card](https://goreportcard.com/badge/traefik/traefik)](https://goreportcard.com/report/traefik/traefik)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/traefik/traefik/blob/master/LICENSE.md)
@@ -152,7 +151,7 @@ We use [Semantic Versioning](https://semver.org/).
 
 ## Credits
 
-Kudos to [Peka](http://peka.byethost11.com/photoblog/) for his awesome work on the gopher's logo!.
+Kudos to [Peka](https://www.instagram.com/pierroks/) for his awesome work on the gopher's logo!.
 
 The gopher's logo of Traefik is licensed under the Creative Commons 3.0 Attributions license.
 
