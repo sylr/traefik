@@ -154,9 +154,10 @@ func initStandardRegistry(config *types.Prometheus) Registry {
 			Help: "How many HTTP requests with TLS processed on an entrypoint, partitioned by TLS Version and TLS cipher Used.",
 		}, []string{"tls_version", "tls_cipher", "entrypoint"})
 		entryPointReqDurations := newHistogramFrom(stdprometheus.HistogramOpts{
-			Name:    entryPointReqDurationName,
-			Help:    "How long it took to process the request on an entrypoint, partitioned by status code, protocol, and method.",
-			Buckets: buckets,
+			Name:                        entryPointReqDurationName,
+			Help:                        "How long it took to process the request on an entrypoint, partitioned by status code, protocol, and method.",
+			Buckets:                     buckets,
+			NativeHistogramBucketFactor: 1.1,
 		}, []string{"code", "method", "protocol", "entrypoint"})
 		entryPointReqsBytesTotal := newCounterFrom(stdprometheus.CounterOpts{
 			Name: entryPointReqsBytesTotalName,
@@ -192,9 +193,10 @@ func initStandardRegistry(config *types.Prometheus) Registry {
 			Help: "How many HTTP requests with TLS are processed on a router, partitioned by service, TLS Version, and TLS cipher Used.",
 		}, []string{"tls_version", "tls_cipher", "router", "service"})
 		routerReqDurations := newHistogramFrom(stdprometheus.HistogramOpts{
-			Name:    routerReqDurationName,
-			Help:    "How long it took to process the request on a router, partitioned by service, status code, protocol, and method.",
-			Buckets: buckets,
+			Name:                        routerReqDurationName,
+			Help:                        "How long it took to process the request on a router, partitioned by service, status code, protocol, and method.",
+			Buckets:                     buckets,
+			NativeHistogramBucketFactor: 1.1,
 		}, []string{"code", "method", "protocol", "router", "service"})
 		routerReqsBytesTotal := newCounterFrom(stdprometheus.CounterOpts{
 			Name: routerReqsBytesTotalName,
@@ -229,9 +231,10 @@ func initStandardRegistry(config *types.Prometheus) Registry {
 			Help: "How many HTTP requests with TLS processed on a service, partitioned by TLS version and TLS cipher.",
 		}, []string{"tls_version", "tls_cipher", "service"})
 		serviceReqDurations := newHistogramFrom(stdprometheus.HistogramOpts{
-			Name:    serviceReqDurationName,
-			Help:    "How long it took to process the request on a service, partitioned by status code, protocol, and method.",
-			Buckets: buckets,
+			Name:                        serviceReqDurationName,
+			Help:                        "How long it took to process the request on a service, partitioned by status code, protocol, and method.",
+			Buckets:                     buckets,
+			NativeHistogramBucketFactor: 1.1,
 		}, []string{"code", "method", "protocol", "service"})
 		serviceRetries := newCounterFrom(stdprometheus.CounterOpts{
 			Name: serviceRetriesTotalName,
