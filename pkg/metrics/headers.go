@@ -87,3 +87,33 @@ func (h MultiHistogramWithHeaders) With(headers http.Header, labelValues ...stri
 	}
 	return next
 }
+
+// NewScalableHistogramWithNoopHeaders returns a multi-histogram, wrapping the passed ScalableHistogramWithHeaders.
+func NewScalableHistogramWithNoopHeaders(h metrics.Histogram, unit time.Duration) (ScalableHistogramWithNoopHeaders, error) {
+	sh, err := NewHistogramWithScale(h, unit)
+	if err != nil {
+		return ScalableHistogramWithNoopHeaders{}, err
+	}
+	return ScalableHistogramWithNoopHeaders{histogram: sh, unit: unit}, nil
+}
+
+// ScalableHistogramWithNoopHeaders collects multiple individual histograms and treats them as a unit.
+type ScalableHistogramWithNoopHeaders struct {
+	histogram ScalableHistogramWithHeaders
+	unit      time.Duration
+}
+
+// ObserveFromStart implements ScalableHistogramWithHeaders.
+func (h ScalableHistogramWithNoopHeaders) ObserveFromStart(start time.Time) {
+	h.histogram.Observe(time.Since(start).Seconds())
+}
+
+// Observe implements ScalableHistogramWithHeaders.
+func (h ScalableHistogramWithNoopHeaders) Observe(v float64) {
+	h.histogram.Observe(v)
+}
+
+// With implements ScalableHistogramWithHeaders.
+func (h ScalableHistogramWithNoopHeaders) With(headers http.Header, labelValues ...string) ScalableHistogramWithHeaders {
+	return ScalableHistogramWithNoopHeaders{histogram: h.histogram.With(headers, labelValues...)}
+}
