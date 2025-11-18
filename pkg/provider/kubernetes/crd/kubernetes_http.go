@@ -708,6 +708,19 @@ func (c configBuilder) loadServers(parentNamespace string, svc traefikv1alpha1.L
 		return nil, fmt.Errorf("no servers found for %s/%s", namespace, sanitizedName)
 	}
 
+	// Remove the weights if they all are 0.
+	minWeight := 0
+	for _, server := range servers {
+		if server.Weight != nil {
+			minWeight = max(minWeight, *server.Weight)
+		}
+	}
+	if minWeight == 0 {
+		for i := range servers {
+			servers[i].Weight = nil
+		}
+	}
+
 	return servers, nil
 }
 

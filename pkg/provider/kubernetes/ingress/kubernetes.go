@@ -669,11 +669,12 @@ func (p *Provider) loadService(client Client, namespace string, backend netv1.In
 
 		protocol := getProtocol(portSpec, portName, svcConfig)
 
-		var (
-			weightPreferred = 100
-			weightOther     = 0
-		)
 		for _, endpoint := range endpointSlice.Endpoints {
+			var (
+				weightPreferred = 100
+				weightOther     = 1
+			)
+
 			if !k8s.EndpointServing(endpoint) {
 				continue
 			}
@@ -709,6 +710,19 @@ func (p *Provider) loadService(client Client, namespace string, backend netv1.In
 				}
 				svc.LoadBalancer.Servers = append(svc.LoadBalancer.Servers, server)
 			}
+		}
+	}
+
+	// Remove the weights if they all are 0.
+	minWeight := 0
+	for _, server := range svc.LoadBalancer.Servers {
+		if server.Weight != nil {
+			minWeight = max(minWeight, *server.Weight)
+		}
+	}
+	if minWeight == 0 {
+		for i := range svc.LoadBalancer.Servers {
+			svc.LoadBalancer.Servers[i].Weight = nil
 		}
 	}
 
