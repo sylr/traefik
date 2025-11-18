@@ -21,9 +21,6 @@ import (
 	"github.com/traefik/traefik/v3/pkg/safe"
 )
 
-// DockerAPIVersion is a constant holding the version of the Provider API traefik will use.
-const DockerAPIVersion = "1.24"
-
 const dockerName = "docker"
 
 var _ provider.Provider = (*Provider)(nil)
@@ -54,7 +51,6 @@ func (p *Provider) Init() error {
 }
 
 func (p *Provider) createClient(ctx context.Context) (*client.Client, error) {
-	p.ClientConfig.apiVersion = DockerAPIVersion
 	return createClient(ctx, p.ClientConfig)
 }
 
@@ -165,7 +161,9 @@ func (p *Provider) Provide(configurationChan chan<- dynamic.Message, pool *safe.
 }
 
 func (p *Provider) listContainers(ctx context.Context, dockerClient client.ContainerAPIClient) ([]dockerData, error) {
-	containerList, err := dockerClient.ContainerList(ctx, container.ListOptions{})
+	containerList, err := dockerClient.ContainerList(ctx, container.ListOptions{
+		All: true,
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -1,5 +1,6 @@
 import { AriaTable, AriaTbody, AriaTd, AriaTfoot, AriaThead, AriaTr, Box, Flex, Text } from '@traefiklabs/faency'
 import { useMemo } from 'react'
+import { Helmet } from 'react-helmet-async'
 import useInfiniteScroll from 'react-infinite-scroll-hook'
 import { useSearchParams } from 'react-router-dom'
 
@@ -13,8 +14,7 @@ import SortableTh from 'components/tables/SortableTh'
 import Tooltip from 'components/Tooltip'
 import TooltipText from 'components/TooltipText'
 import useFetchWithPagination, { pagesResponseInterface, RenderRowType } from 'hooks/use-fetch-with-pagination'
-import { EmptyPlaceholder } from 'layout/EmptyPlaceholder'
-import Page from 'layout/Page'
+import { EmptyPlaceholderTd } from 'layout/EmptyPlaceholder'
 
 export const makeRowRender = (): RenderRowType => {
   const TcpServicesRenderRow = (row) => (
@@ -78,9 +78,7 @@ export const TcpServicesRender = ({
         {(isEmpty || !!error) && (
           <AriaTfoot>
             <AriaTr>
-              <AriaTd fullColSpan>
-                <EmptyPlaceholder message={error ? 'Failed to fetch data' : 'No data available'} />
-              </AriaTd>
+              <EmptyPlaceholderTd message={error ? 'Failed to fetch data' : 'No data available'} />
             </AriaTr>
           </AriaTfoot>
         )}
@@ -108,7 +106,10 @@ export const TcpServices = () => {
   )
 
   return (
-    <Page title="TCP Services">
+    <>
+      <Helmet>
+        <title>TCP Services - Traefik Proxy</title>
+      </Helmet>
       <TableFilter />
       <TcpServicesRender
         error={error}
@@ -119,6 +120,6 @@ export const TcpServices = () => {
         pageCount={pageCount}
         pages={pages}
       />
-    </Page>
+    </>
   )
 }

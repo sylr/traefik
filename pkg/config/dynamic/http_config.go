@@ -54,10 +54,11 @@ type Model struct {
 
 // Service holds a service configuration (can only be of one type at the same time).
 type Service struct {
-	LoadBalancer *ServersLoadBalancer `json:"loadBalancer,omitempty" toml:"loadBalancer,omitempty" yaml:"loadBalancer,omitempty" export:"true"`
-	Weighted     *WeightedRoundRobin  `json:"weighted,omitempty" toml:"weighted,omitempty" yaml:"weighted,omitempty" label:"-" export:"true"`
-	Mirroring    *Mirroring           `json:"mirroring,omitempty" toml:"mirroring,omitempty" yaml:"mirroring,omitempty" label:"-" export:"true"`
-	Failover     *Failover            `json:"failover,omitempty" toml:"failover,omitempty" yaml:"failover,omitempty" label:"-" export:"true"`
+	LoadBalancer        *ServersLoadBalancer `json:"loadBalancer,omitempty" toml:"loadBalancer,omitempty" yaml:"loadBalancer,omitempty" export:"true"`
+	HighestRandomWeight *HighestRandomWeight `json:"highestRandomWeight,omitempty" toml:"highestRandomWeight,omitempty" yaml:"highestRandomWeight,omitempty" label:"-" export:"true"`
+	Weighted            *WeightedRoundRobin  `json:"weighted,omitempty" toml:"weighted,omitempty" yaml:"weighted,omitempty" label:"-" export:"true"`
+	Mirroring           *Mirroring           `json:"mirroring,omitempty" toml:"mirroring,omitempty" yaml:"mirroring,omitempty" label:"-" export:"true"`
+	Failover            *Failover            `json:"failover,omitempty" toml:"failover,omitempty" yaml:"failover,omitempty" label:"-" export:"true"`
 }
 
 // +k8s:deepcopy-gen=true
@@ -68,6 +69,7 @@ type Router struct {
 	Middlewares []string `json:"middlewares,omitempty" toml:"middlewares,omitempty" yaml:"middlewares,omitempty" export:"true"`
 	Service     string   `json:"service,omitempty" toml:"service,omitempty" yaml:"service,omitempty" export:"true"`
 	Rule        string   `json:"rule,omitempty" toml:"rule,omitempty" yaml:"rule,omitempty"`
+	ParentRefs  []string `json:"parentRefs,omitempty" toml:"parentRefs,omitempty" yaml:"parentRefs,omitempty" label:"-" export:"true"`
 	// Deprecated: Please do not use this field and rewrite the router rules to use the v3 syntax.
 	RuleSyntax    string                     `json:"ruleSyntax,omitempty" toml:"ruleSyntax,omitempty" yaml:"ruleSyntax,omitempty" export:"true"`
 	Priority      int                        `json:"priority,omitempty" toml:"priority,omitempty,omitzero" yaml:"priority,omitempty" export:"true"`
@@ -158,10 +160,27 @@ type WeightedRoundRobin struct {
 
 // +k8s:deepcopy-gen=true
 
+// HighestRandomWeight is a weighted sticky load-balancer of services.
+type HighestRandomWeight struct {
+	Services []HRWService `json:"services,omitempty" toml:"services,omitempty" yaml:"services,omitempty" export:"true"`
+	// HealthCheck enables automatic self-healthcheck for this service, i.e.
+	// whenever one of its children is reported as down, this service becomes aware of it,
+	// and takes it into account (i.e. it ignores the down child) when running the
+	// load-balancing algorithm. In addition, if the parent of this service also has
+	// HealthCheck enabled, this service reports to its parent any status change.
+	HealthCheck *HealthCheck `json:"healthCheck,omitempty" toml:"healthCheck,omitempty" yaml:"healthCheck,omitempty" label:"allowEmpty" file:"allowEmpty" kv:"allowEmpty" export:"true"`
+}
+
+// +k8s:deepcopy-gen=true
+
 // WRRService is a reference to a service load-balanced with weighted round-robin.
 type WRRService struct {
 	Name   string `json:"name,omitempty" toml:"name,omitempty" yaml:"name,omitempty" export:"true"`
 	Weight *int   `json:"weight,omitempty" toml:"weight,omitempty" yaml:"weight,omitempty" export:"true"`
+
+	// Headers defines the HTTP headers that should be added to the request when calling the service.
+	// This is required by the Knative implementation which expects specific headers to be sent.
+	Headers map[string]string `json:"-" toml:"-" yaml:"-" label:"-" file:"-"`
 
 	// Status defines an HTTP status code that should be returned when calling the service.
 	// This is required by the Gateway API implementation which expects specific HTTP status to be returned.
@@ -173,6 +192,20 @@ type WRRService struct {
 
 // SetDefaults Default values for a WRRService.
 func (w *WRRService) SetDefaults() {
+	defaultWeight := 1
+	w.Weight = &defaultWeight
+}
+
+// +k8s:deepcopy-gen=true
+
+// HRWService is a reference to a service load-balanced with highest random weight.
+type HRWService struct {
+	Name   string `json:"name,omitempty" toml:"name,omitempty" yaml:"name,omitempty" export:"true"`
+	Weight *int   `json:"weight,omitempty" toml:"weight,omitempty" yaml:"weight,omitempty" export:"true"`
+}
+
+// SetDefaults Default values for a HRWService.
+func (w *HRWService) SetDefaults() {
 	defaultWeight := 1
 	w.Weight = &defaultWeight
 }
@@ -232,6 +265,10 @@ const (
 	BalancerStrategyWRR BalancerStrategy = "wrr"
 	// BalancerStrategyP2C is the power of two choices strategy.
 	BalancerStrategyP2C BalancerStrategy = "p2c"
+	// BalancerStrategyHRW is the highest random weight strategy.
+	BalancerStrategyHRW BalancerStrategy = "hrw"
+	// BalancerStrategyLeastTime is the least-time strategy.
+	BalancerStrategyLeastTime BalancerStrategy = "leasttime"
 )
 
 // +k8s:deepcopy-gen=true
@@ -245,10 +282,12 @@ type ServersLoadBalancer struct {
 	// children servers of this load-balancer. To propagate status changes (e.g. all
 	// servers of this service are down) upwards, HealthCheck must also be enabled on
 	// the parent(s) of this service.
-	HealthCheck        *ServerHealthCheck  `json:"healthCheck,omitempty" toml:"healthCheck,omitempty" yaml:"healthCheck,omitempty" export:"true"`
-	PassHostHeader     *bool               `json:"passHostHeader" toml:"passHostHeader" yaml:"passHostHeader" export:"true"`
-	ResponseForwarding *ResponseForwarding `json:"responseForwarding,omitempty" toml:"responseForwarding,omitempty" yaml:"responseForwarding,omitempty" export:"true"`
-	ServersTransport   string              `json:"serversTransport,omitempty" toml:"serversTransport,omitempty" yaml:"serversTransport,omitempty" export:"true"`
+	HealthCheck *ServerHealthCheck `json:"healthCheck,omitempty" toml:"healthCheck,omitempty" yaml:"healthCheck,omitempty" export:"true"`
+	// PassiveHealthCheck enables passive health checks for children servers of this load-balancer.
+	PassiveHealthCheck *PassiveServerHealthCheck `json:"passiveHealthCheck,omitempty" toml:"passiveHealthCheck,omitempty" yaml:"passiveHealthCheck,omitempty" export:"true"`
+	PassHostHeader     *bool                     `json:"passHostHeader" toml:"passHostHeader" yaml:"passHostHeader" export:"true"`
+	ResponseForwarding *ResponseForwarding       `json:"responseForwarding,omitempty" toml:"responseForwarding,omitempty" yaml:"responseForwarding,omitempty" export:"true"`
+	ServersTransport   string                    `json:"serversTransport,omitempty" toml:"serversTransport,omitempty" yaml:"serversTransport,omitempty" export:"true"`
 }
 
 // Mergeable tells if the given service is mergeable.
@@ -333,6 +372,20 @@ func (h *ServerHealthCheck) SetDefaults() {
 	h.Mode = "http"
 	h.Interval = DefaultHealthCheckInterval
 	h.Timeout = DefaultHealthCheckTimeout
+}
+
+// +k8s:deepcopy-gen=true
+
+type PassiveServerHealthCheck struct {
+	// FailureWindow defines the time window during which the failed attempts must occur for the server to be marked as unhealthy. It also defines for how long the server will be considered unhealthy.
+	FailureWindow ptypes.Duration `json:"failureWindow,omitempty" toml:"failureWindow,omitempty" yaml:"failureWindow,omitempty" export:"true"`
+	// MaxFailedAttempts is the number of consecutive failed attempts allowed within the failure window before marking the server as unhealthy.
+	MaxFailedAttempts int `json:"maxFailedAttempts,omitempty" toml:"maxFailedAttempts,omitempty" yaml:"maxFailedAttempts,omitempty" export:"true"`
+}
+
+func (p *PassiveServerHealthCheck) SetDefaults() {
+	p.FailureWindow = ptypes.Duration(10 * time.Second)
+	p.MaxFailedAttempts = 1
 }
 
 // +k8s:deepcopy-gen=true

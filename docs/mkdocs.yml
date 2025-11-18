@@ -228,6 +228,7 @@ nav:
           - 'Kubernetes CRD' : 'reference/install-configuration/providers/kubernetes/kubernetes-crd.md'
           - 'Kubernetes Ingress' : 'reference/install-configuration/providers/kubernetes/kubernetes-ingress.md'
           - 'Kubernetes Ingress NGINX' : 'reference/install-configuration/providers/kubernetes/kubernetes-ingress-nginx.md'
+          - 'Knative': 'reference/install-configuration/providers/kubernetes/knative.md'
         - 'Docker': 'reference/install-configuration/providers/docker.md'
         - 'Swarm': 'reference/install-configuration/providers/swarm.md'
         - 'Hashicorp':
@@ -266,6 +267,7 @@ nav:
               - 'Router' : 'reference/routing-configuration/http/routing/router.md'
               - 'Rules & Priority' : 'reference/routing-configuration/http/routing/rules-and-priority.md'
               - 'Observability': 'reference/routing-configuration/http/routing/observability.md'
+              - 'Multi-Layer Routing': 'reference/routing-configuration/http/routing/multi-layer-routing.md'
             - 'Load Balancing' :
               - 'Service' : 'reference/routing-configuration/http/load-balancing/service.md'
               - 'ServersTransport' : 'reference/routing-configuration/http/load-balancing/serverstransport.md'
@@ -345,6 +347,7 @@ nav:
                 - 'IngressRouteUDP' : 'reference/routing-configuration/kubernetes/crd/udp/ingressrouteudp.md'
           - 'Ingress' : 'reference/routing-configuration/kubernetes/ingress.md'
           - 'Ingress NGINX' : 'reference/routing-configuration/kubernetes/ingress-nginx.md'
+          - 'Knative': 'reference/routing-configuration/kubernetes/knative.md'
         - 'Label & Tag Providers' :
           - 'Docker' : 'reference/routing-configuration/other-providers/docker.md'
           - 'Swarm' : 'reference/routing-configuration/other-providers/swarm.md'
@@ -361,6 +364,8 @@ nav:
         - 'Features': 'deprecation/features.md'
   - 'User Guides':
       - 'FastProxy': 'user-guides/fastproxy.md'
+      - 'Kubernetes and Let''s Encrypt': 'user-guides/crd-acme/index.md'
+      - 'Kubernetes and cert-manager': 'user-guides/cert-manager.md'
       - 'gRPC Examples': 'user-guides/grpc.md'
       - 'WebSocket Examples': 'user-guides/websocket.md'
   - 'Contributing':

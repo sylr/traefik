@@ -30,6 +30,9 @@ http:
           path: "/health"
           interval: "10s"
           timeout: "3s"
+        passiveHealthcheck:
+          failureWindow: "3s"
+          maxFailedAttempts: "3"
         passHostHeader: true
         serversTransport: "customTransport@file"
         responseForwarding:
@@ -49,6 +52,10 @@ http:
       path = "/health"
       interval = "10s"
       timeout = "3s"
+
+    [http.services.my-service.loadBalancer.passiveHealthcheck]
+      failureWindow = "3s"
+      maxFailedAttempts = "3"
     
     passHostHeader = true
     serversTransport = "customTransport@file"
@@ -66,6 +73,8 @@ labels:
   - "traefik.http.services.my-service.loadBalancer.healthcheck.path=/health"
   - "traefik.http.services.my-service.loadBalancer.healthcheck.interval=10s"
   - "traefik.http.services.my-service.loadBalancer.healthcheck.timeout=3s"
+  - "traefik.http.services.my-service.loadBalancer.passiveHealthcheck.failureWindow=3s"
+  - "traefik.http.services.my-service.loadBalancer.passiveHealthcheck.maxFailedAttempts=3"
   - "traefik.http.services.my-service.loadBalancer.passHostHeader=true"
   - "traefik.http.services.my-service.loadBalancer.serversTransport=customTransport@file"
   - "traefik.http.services.my-service.loadBalancer.responseForwarding.flushInterval=150ms"
@@ -81,6 +90,8 @@ labels:
     "traefik.http.services.my-service.loadBalancer.healthcheck.path=/health",
     "traefik.http.services.my-service.loadBalancer.healthcheck.interval=10s",
     "traefik.http.services.my-service.loadBalancer.healthcheck.timeout=3s",
+    "traefik.http.services.my-service.loadBalancer.passiveHealthcheck.failureWindow=3s",
+    "traefik.http.services.my-service.loadBalancer.passiveHealthcheck.maxFailedAttempts=3",
     "traefik.http.services.my-service.loadBalancer.passHostHeader=true",
     "traefik.http.services.my-service.loadBalancer.serversTransport=customTransport@file",
     "traefik.http.services.my-service.loadBalancer.responseForwarding.flushInterval=150ms"
@@ -95,6 +106,7 @@ labels:
 | <a id="opt-servers" href="#opt-servers" title="#opt-servers">`servers`</a> | Represents individual backend instances for your service                                                                                                                                                                                                                                                                                                                                      | Yes      |
 | <a id="opt-sticky" href="#opt-sticky" title="#opt-sticky">`sticky`</a> | Defines a `Set-Cookie` header is set on the initial response to let the client know which server handles the first response.                                                                                                                                                                                                                                                                  | No       |
 | <a id="opt-healthcheck" href="#opt-healthcheck" title="#opt-healthcheck">`healthcheck`</a> | Configures health check to remove unhealthy servers from the load balancing rotation.                                                                                                                                                                                                                                                                                                         | No       |
+| <a id="opt-passiveHealthcheck" href="#opt-passiveHealthcheck" title="#opt-passiveHealthcheck">`passiveHealthcheck`</a> | Configures the passive health check to remove unhealthy servers from the load balancing rotation.                                                                                                                                                                                                                                                                                             | No       |
 | <a id="opt-passHostHeader" href="#opt-passHostHeader" title="#opt-passHostHeader">`passHostHeader`</a> | Allows forwarding of the client Host header to server. By default, `passHostHeader` is true.                                                                                                                                                                                                                                                                                                  | No       |
 | <a id="opt-serversTransport" href="#opt-serversTransport" title="#opt-serversTransport">`serversTransport`</a> | Allows to reference an [HTTP ServersTransport](./serverstransport.md) configuration for the communication between Traefik and your servers. If no `serversTransport` is specified, the `default@internal` will be used.                                                                                                                                                                       | No       |
 | <a id="opt-responseForwarding" href="#opt-responseForwarding" title="#opt-responseForwarding">`responseForwarding`</a> | Configures how Traefik forwards the response from the backend server to the client.                                                                                                                                                                                                                                                                                                           | No       |
@@ -114,7 +126,9 @@ Servers represent individual backend instances for your service. The [service lo
 
 #### Health Check
 
-The `healthcheck` option configures health check to remove unhealthy servers from the load balancing rotation. Traefik will consider HTTP(s) servers healthy as long as they return a status code to the health check request (carried out every interval) between `2XX` and `3XX`, or matching the configured status. For gRPC servers, Traefik will consider them healthy as long as they return SERVING to [gRPC health check v1 requests](https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+The `healthcheck` option configures health check to remove unhealthy servers from the load balancing rotation.
+Traefik will consider HTTP(s) servers healthy as long as they return a status code to the health check request (carried out every interval) between `2XX` and `3XX`, or matching the configured status.
+For gRPC servers, Traefik will consider them healthy as long as they return SERVING to [gRPC health check v1 requests](https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
 
 To propagate status changes (e.g. all servers of this service are down) upwards, HealthCheck must also be enabled on the parent(s) of this service.
 
@@ -294,6 +308,24 @@ On subsequent requests, to keep the session alive with the same server, the clie
     curl -b "lvl1=whoami1; lvl2=http://127.0.0.1:8081" http://localhost:8000
     ```
 
+#### Passive Health Check
+
+The `passiveHealthcheck` option configures passive health check to remove unhealthy servers from the load balancing rotation.
+
+Passive health checks rely on real traffic to assess server health.
+Traefik forwards requests as usual and evaluates each response or timeout,
+incrementing a failure counter whenever a request fails.
+If the number of successive failures within a specified time window exceeds the configured threshold,
+Traefik will automatically stop routing traffic to that server until it recovers.
+A server will be considered healthy again after the configured failure window has passed.
+
+Below are the available options for the passive health check mechanism:
+
+| Field               | Description                                                                                                                                                                         | Default | Required |
+|---------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|----------|
+| <a id="opt-failureWindow" href="#opt-failureWindow" title="#opt-failureWindow">`failureWindow`</a> | Defines the time window during which the failed attempts must occur for the server to be marked as unhealthy. It also defines for how long the server will be considered unhealthy. | 10s     | No       |
+| <a id="opt-maxFailedAttempts" href="#opt-maxFailedAttempts" title="#opt-maxFailedAttempts">`maxFailedAttempts`</a> | Defines the number of consecutive failed attempts allowed within the failure window before marking the server as unhealthy.                                                         | 1       | No       |
+
 ## Weighted Round Robin (WRR)
 
 The WRR is able to load balance the requests between multiple services based on weights.
@@ -449,6 +481,48 @@ Power of two choices algorithm is a load balancing strategy that selects two ser
           url = "http://private-ip-server-1/"
         [[http.services.my-service.loadBalancer.servers]]
           url = "http://private-ip-server-2/"       
+        [[http.services.my-service.loadBalancer.servers]]
+          url = "http://private-ip-server-3/"
+    ```
+
+## Least-Time
+
+The Least-Time load balancing algorithm selects the server with the lowest average response time (Time To First Byte - TTFB),
+combined with the fewest active connections, weighted by server capacity.
+This strategy is ideal for heterogeneous backend environments where servers have varying performance characteristics,
+different hardware capabilities, or varying network latency.
+
+The algorithm continuously measures each backend's response time and tracks active connection counts.
+When routing a request,
+it calculates a score for each healthy server using the formula: `(avg_response_time × (1 + active_connections)) / weight`.
+The server with the lowest score receives the request.
+When multiple servers have identical scores,
+Weighted Round Robin (WRR) with Earliest Deadline First (EDF) scheduling is used as a tie-breaker to ensure fair distribution.
+
+??? example "Basic Least-Time Load Balancing -- Using the [File Provider](../../../install-configuration/providers/others/file.md)"
+
+    ```yaml tab="YAML"
+    ## Dynamic configuration
+    http:
+      services:
+        my-service:
+          loadBalancer:
+            strategy: "leasttime"
+            servers:
+            - url: "http://private-ip-server-1/"
+            - url: "http://private-ip-server-2/"
+            - url: "http://private-ip-server-3/"
+    ```
+
+    ```toml tab="TOML"
+    ## Dynamic configuration
+    [http.services]
+      [http.services.my-service.loadBalancer]
+        strategy = "leasttime"
+        [[http.services.my-service.loadBalancer.servers]]
+          url = "http://private-ip-server-1/"
+        [[http.services.my-service.loadBalancer.servers]]
+          url = "http://private-ip-server-2/"
         [[http.services.my-service.loadBalancer.servers]]
           url = "http://private-ip-server-3/"
     ```

@@ -135,6 +135,9 @@ Timeout for receiving the response headers when communicating with the ACME serv
 `TRAEFIK_CERTIFICATESRESOLVERS_<NAME>_ACME_CLIENTTIMEOUT`:  
 Timeout for a complete HTTP transaction with the ACME server. (Default: ```120```)
 
+`TRAEFIK_CERTIFICATESRESOLVERS_<NAME>_ACME_DISABLECOMMONNAME`:  
+Disable the common name in the CSR. (Default: ```false```)
+
 `TRAEFIK_CERTIFICATESRESOLVERS_<NAME>_ACME_DNSCHALLENGE`:  
 Activate DNS-01 Challenge. (Default: ```false```)
 
@@ -199,7 +202,10 @@ Certificate profile to use.
 Storage to use. (Default: ```acme.json```)
 
 `TRAEFIK_CERTIFICATESRESOLVERS_<NAME>_ACME_TLSCHALLENGE`:  
-Activate TLS-ALPN-01 Challenge. (Default: ```true```)
+Activate TLS-ALPN-01 Challenge. (Default: ```false```)
+
+`TRAEFIK_CERTIFICATESRESOLVERS_<NAME>_ACME_TLSCHALLENGE_DELAY`:  
+Delay between the creation of the challenge and the validation. (Default: ```0```)
 
 `TRAEFIK_CERTIFICATESRESOLVERS_<NAME>_TAILSCALE`:  
 Enables Tailscale certificate resolution. (Default: ```true```)
@@ -361,7 +367,7 @@ Environment variables to forward to the wasm guest.
 Directory to mount to the wasm guest.
 
 `TRAEFIK_EXPERIMENTAL_LOCALPLUGINS_<NAME>_SETTINGS_USEUNSAFE`:  
-Allow the plugin to use unsafe package. (Default: ```false```)
+Allow the plugin to use unsafe and syscall packages. (Default: ```false```)
 
 `TRAEFIK_EXPERIMENTAL_OTLPLOGS`:  
 Enables the OpenTelemetry logs integration. (Default: ```false```)
@@ -379,7 +385,7 @@ Environment variables to forward to the wasm guest.
 Directory to mount to the wasm guest.
 
 `TRAEFIK_EXPERIMENTAL_PLUGINS_<NAME>_SETTINGS_USEUNSAFE`:  
-Allow the plugin to use unsafe package. (Default: ```false```)
+Allow the plugin to use unsafe and syscall packages. (Default: ```false```)
 
 `TRAEFIK_EXPERIMENTAL_PLUGINS_<NAME>_VERSION`:  
 plugin's version.

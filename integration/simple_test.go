@@ -885,6 +885,109 @@ func (s *SimpleSuite) TestWRRServer() {
 	assert.Equal(s.T(), 1, repartition[whoami2IP])
 }
 
+func (s *SimpleSuite) TestLeastTimeServer() {
+	s.createComposeProject("base")
+
+	s.composeUp()
+	defer s.composeDown()
+
+	whoami1IP := s.getComposeServiceIP("whoami1")
+	whoami2IP := s.getComposeServiceIP("whoami2")
+
+	file := s.adaptFile("fixtures/leasttime_server.toml", struct {
+		Server1 string
+		Server2 string
+	}{Server1: "http://" + whoami1IP, Server2: "http://" + whoami2IP})
+
+	s.traefikCmd(withConfigFile(file))
+
+	err := try.GetRequest("http://127.0.0.1:8080/api/http/services", 1000*time.Millisecond, try.BodyContains("service1"))
+	require.NoError(s.T(), err)
+
+	// Verify leasttime strategy is configured
+	err = try.GetRequest("http://127.0.0.1:8080/api/http/services", 1000*time.Millisecond, try.BodyContains("leasttime"))
+	require.NoError(s.T(), err)
+
+	// Make requests and verify both servers respond
+	repartition := map[string]int{}
+	for range 10 {
+		req, err := http.NewRequest(http.MethodGet, "http://127.0.0.1:8000/whoami", nil)
+		require.NoError(s.T(), err)
+
+		response, err := http.DefaultClient.Do(req)
+		require.NoError(s.T(), err)
+		assert.Equal(s.T(), http.StatusOK, response.StatusCode)
+
+		body, err := io.ReadAll(response.Body)
+		require.NoError(s.T(), err)
+
+		if strings.Contains(string(body), whoami1IP) {
+			repartition[whoami1IP]++
+		}
+		if strings.Contains(string(body), whoami2IP) {
+			repartition[whoami2IP]++
+		}
+	}
+
+	// Both servers should have received requests
+	assert.Positive(s.T(), repartition[whoami1IP])
+	assert.Positive(s.T(), repartition[whoami2IP])
+}
+
+func (s *SimpleSuite) TestLeastTimeHeterogeneousPerformance() {
+	// Create test servers with different response times
+	var fastServerCalls, slowServerCalls atomic.Int32
+
+	fastServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		fastServerCalls.Add(1)
+		time.Sleep(10 * time.Millisecond) // Fast server
+		rw.WriteHeader(http.StatusOK)
+		_, _ = rw.Write([]byte("fast-server"))
+	}))
+	defer fastServer.Close()
+
+	slowServer := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		slowServerCalls.Add(1)
+		time.Sleep(100 * time.Millisecond) // Slow server
+		rw.WriteHeader(http.StatusOK)
+		_, _ = rw.Write([]byte("slow-server"))
+	}))
+	defer slowServer.Close()
+
+	file := s.adaptFile("fixtures/leasttime_server.toml", struct {
+		Server1 string
+		Server2 string
+	}{Server1: fastServer.URL, Server2: slowServer.URL})
+
+	s.traefikCmd(withConfigFile(file))
+
+	err := try.GetRequest("http://127.0.0.1:8080/api/http/services", 1000*time.Millisecond, try.BodyContains("service1"))
+	require.NoError(s.T(), err)
+
+	// Make 20 requests to build up response time statistics
+	for range 20 {
+		req, err := http.NewRequest(http.MethodGet, "http://127.0.0.1:8000/whoami", nil)
+		require.NoError(s.T(), err)
+
+		response, err := http.DefaultClient.Do(req)
+		require.NoError(s.T(), err)
+		assert.Equal(s.T(), http.StatusOK, response.StatusCode)
+		_, _ = io.ReadAll(response.Body)
+		response.Body.Close()
+	}
+
+	// Verify that the fast server received significantly more requests (>70%)
+	fastCalls := fastServerCalls.Load()
+	slowCalls := slowServerCalls.Load()
+	totalCalls := fastCalls + slowCalls
+
+	assert.Equal(s.T(), int32(20), totalCalls)
+
+	// Fast server should get >70% of traffic due to lower response time
+	fastPercentage := float64(fastCalls) / float64(totalCalls) * 100
+	assert.Greater(s.T(), fastPercentage, 70.0)
+}
+
 func (s *SimpleSuite) TestWRR() {
 	s.createComposeProject("base")
 
@@ -1215,6 +1318,74 @@ func (s *SimpleSuite) TestMirrorCanceled() {
 	assert.Equal(s.T(), int32(5), countTotal)
 	assert.Equal(s.T(), int32(0), val1)
 	assert.Equal(s.T(), int32(0), val2)
+}
+
+func (s *SimpleSuite) TestHighestRandomWeight() {
+	var count1, count2, count3 int32
+
+	service1 := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		atomic.AddInt32(&count1, 1)
+		rw.WriteHeader(http.StatusOK)
+	}))
+
+	service2 := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		atomic.AddInt32(&count2, 1)
+		rw.WriteHeader(http.StatusOK)
+	}))
+
+	service3 := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		atomic.AddInt32(&count3, 1)
+		rw.WriteHeader(http.StatusOK)
+	}))
+
+	service1Server := service1.URL
+	service2Server := service2.URL
+	service3Server := service3.URL
+
+	file := s.adaptFile("fixtures/highest_random_weight.toml", struct {
+		Service1Server string
+		Service2Server string
+		Service3Server string
+	}{Service1Server: service1Server, Service2Server: service2Server, Service3Server: service3Server})
+
+	s.traefikCmd(withConfigFile(file))
+
+	err := try.GetRequest("http://127.0.0.1:8080/api/http/services", 3*time.Second, try.BodyContains("service1", "service2", "service3", "hrw"))
+	require.NoError(s.T(), err)
+
+	// Make 10 requests from the same client (127.0.0.1) - should all go to the same service
+	client := &http.Client{}
+	for range 10 {
+		req, err := http.NewRequest(http.MethodGet, "http://127.0.0.1:8000/whoami", nil)
+		require.NoError(s.T(), err)
+
+		response, err := client.Do(req)
+		require.NoError(s.T(), err)
+		assert.Equal(s.T(), http.StatusOK, response.StatusCode)
+		response.Body.Close()
+	}
+
+	// Check if all requests went to the same service
+	val1 := atomic.LoadInt32(&count1)
+	val2 := atomic.LoadInt32(&count2)
+	val3 := atomic.LoadInt32(&count3)
+
+	// All requests should have been handled (total should be 10)
+	assert.Equal(s.T(), int32(10), val1+val2+val3)
+
+	// All requests from same remoteAddr (127.0.0.1) should go to exactly one service
+	servicesUsed := 0
+	if val1 > 0 {
+		servicesUsed++
+	}
+	if val2 > 0 {
+		servicesUsed++
+	}
+	if val3 > 0 {
+		servicesUsed++
+	}
+
+	assert.Equal(s.T(), 1, servicesUsed, "All requests from same remoteAddr should go to exactly one service")
 }
 
 func (s *SimpleSuite) TestSecureAPI() {
