@@ -453,7 +453,7 @@ func (p *Provider) loadConfiguration(ctx context.Context) *dynamic.Configuration
 				}
 
 				// TODO: if no service, do not add middlewares and 503.
-				serviceName := provider.Normalize(ingress.Namespace + "-" + pa.Backend.Service.Name + "-" + portString)
+				serviceName := provider.Normalize(ingress.Namespace + "-" + ingress.Name + "-" + pa.Backend.Service.Name + "-" + portString)
 
 				service, err := p.buildService(ingress.Namespace, pa.Backend, ingressConfig)
 				if err != nil {
@@ -509,7 +509,7 @@ func (p *Provider) buildServersTransport(namespace, name string, cfg ingressConf
 		Name: provider.Normalize(namespace + "-" + name),
 		ServersTransport: &dynamic.ServersTransport{
 			ServerName:         ptr.Deref(cfg.ProxySSLName, ptr.Deref(cfg.ProxySSLServerName, "")),
-			InsecureSkipVerify: strings.ToLower(ptr.Deref(cfg.ProxySSLVerify, "off")) == "on",
+			InsecureSkipVerify: strings.ToLower(ptr.Deref(cfg.ProxySSLVerify, "off")) == "off",
 		},
 	}
 
@@ -968,8 +968,8 @@ func applySSLRedirectConfiguration(routerName string, ingressConfig ingressConfi
 	redirectMiddlewareName := routerName + "-redirect-scheme"
 	conf.HTTP.Middlewares[redirectMiddlewareName] = &dynamic.Middleware{
 		RedirectScheme: &dynamic.RedirectScheme{
-			Scheme:    "https",
-			Permanent: true,
+			Scheme:                 "https",
+			ForcePermanentRedirect: true,
 		},
 	}
 	redirectRouter.Middlewares = append(redirectRouter.Middlewares, redirectMiddlewareName)
