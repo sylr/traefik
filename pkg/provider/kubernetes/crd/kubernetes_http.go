@@ -15,7 +15,6 @@ import (
 	"github.com/traefik/traefik/v3/pkg/observability/logs"
 	"github.com/traefik/traefik/v3/pkg/provider"
 	traefikv1alpha1 "github.com/traefik/traefik/v3/pkg/provider/kubernetes/crd/traefikio/v1alpha1"
-	"github.com/traefik/traefik/v3/pkg/provider/kubernetes/k8s"
 	"github.com/traefik/traefik/v3/pkg/tls"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -666,7 +665,10 @@ func (c configBuilder) loadServers(parentNamespace string, svc traefikv1alpha1.L
 			weightOther     = 0
 		)
 		for _, endpoint := range endpointSlice.Endpoints {
-			if !k8s.EndpointServing(endpoint) {
+			// The Serving condition allows to track if the Pod can receive traffic.
+			// It is set to true when the Pod is Ready or Terminating.
+			// From the go documentation, a nil value should be interpreted as "true".
+			if !ptr.Deref(endpoint.Conditions.Serving, true) {
 				continue
 			}
 
@@ -690,7 +692,7 @@ func (c configBuilder) loadServers(parentNamespace string, svc traefikv1alpha1.L
 				addresses[address] = struct{}{}
 				server := dynamic.Server{
 					URL:    fmt.Sprintf("%s://%s", protocol, net.JoinHostPort(address, strconv.Itoa(int(port)))),
-					Fenced: ptr.Deref(endpoint.Conditions.Terminating, false) && ptr.Deref(endpoint.Conditions.Serving, false),
+					Fenced: ptr.Deref(endpoint.Conditions.Terminating, false),
 				}
 				if hasForZonesHint {
 					if matchPreferred {

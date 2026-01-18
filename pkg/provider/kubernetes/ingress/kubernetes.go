@@ -269,6 +269,17 @@ func (p *Provider) loadConfigurationFromIngresses(ctx context.Context, client Cl
 				continue
 			}
 
+			if ingress.Spec.DefaultBackend.Resource != nil {
+				// https://kubernetes.io/docs/concepts/services-networking/ingress/#resource-backend
+				logger.Error().Msg("Resource is not supported for default backend")
+				continue
+			}
+
+			if ingress.Spec.DefaultBackend.Service == nil {
+				logger.Error().Msg("Default backend is missing service definition")
+				continue
+			}
+
 			service, err := p.loadService(client, ingress.Namespace, *ingress.Spec.DefaultBackend)
 			if err != nil {
 				logger.Error().
@@ -669,13 +680,15 @@ func (p *Provider) loadService(client Client, namespace string, backend netv1.In
 
 		protocol := getProtocol(portSpec, portName, svcConfig)
 
+		var (
+			weightPreferred = 100
+			weightOther     = 0
+		)
 		for _, endpoint := range endpointSlice.Endpoints {
-			var (
-				weightPreferred = 100
-				weightOther     = 1
-			)
-
-			if !k8s.EndpointServing(endpoint) {
+			// The Serving condition allows to track if the Pod can receive traffic.
+			// It is set to true when the Pod is Ready or Terminating.
+			// From the go documentation, a nil value should be interpreted as "true".
+			if !ptr.Deref(endpoint.Conditions.Serving, true) {
 				continue
 			}
 
@@ -699,7 +712,7 @@ func (p *Provider) loadService(client Client, namespace string, backend netv1.In
 				addresses[address] = struct{}{}
 				server := dynamic.Server{
 					URL:    fmt.Sprintf("%s://%s", protocol, net.JoinHostPort(address, strconv.Itoa(int(port)))),
-					Fenced: ptr.Deref(endpoint.Conditions.Terminating, false) && ptr.Deref(endpoint.Conditions.Serving, false),
+					Fenced: ptr.Deref(endpoint.Conditions.Terminating, false),
 				}
 				if hasForZonesHint {
 					if matchPreferred {
