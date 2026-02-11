@@ -246,6 +246,15 @@ func (shc *ServiceHealthChecker) checkHealthHTTP(ctx context.Context, target *ur
 }
 
 func (shc *ServiceHealthChecker) newRequest(ctx context.Context, target *url.URL) (*http.Request, error) {
+	pathURL, err := url.Parse(shc.config.Path)
+	if err != nil {
+		return nil, fmt.Errorf("parsing health check path: %w", err)
+	}
+
+	if pathURL.Host != "" || pathURL.Scheme != "" {
+		return nil, fmt.Errorf("health check path must be a relative URL, got: %q", shc.config.Path)
+	}
+
 	u, err := target.Parse(shc.config.Path)
 	if err != nil {
 		return nil, err
@@ -391,7 +400,7 @@ func (p *PassiveServiceHealthChecker) WrapHandler(ctx context.Context, next http
 		}
 
 		// We need to guarantee that only one goroutine (request) will update the status and create a timer for the target.
-		_, _, _ = p.timersGroup.Do(targetURL, func() (interface{}, error) {
+		_, _, _ = p.timersGroup.Do(targetURL, func() (any, error) {
 			// A timer is already running for this target;
 			// it means that the target is already considered unhealthy.
 			if _, ok := p.timers.Load(targetURL); ok {
