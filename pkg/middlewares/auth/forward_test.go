@@ -536,8 +536,7 @@ func Test_writeHeader(t *testing.T) {
 			trustForwardHeader: false,
 			emptyHost:          true,
 			expectedHeaders: map[string]string{
-				"Accept":           "application/json",
-				"X-Forwarded-Host": "",
+				"Accept": "application/json",
 			},
 		},
 		{
@@ -610,6 +609,7 @@ func Test_writeHeader(t *testing.T) {
 				"X-Forwarded-Method":       "GET",
 				forward.ProxyAuthenticate:  "ProxyAuthenticate",
 				forward.ProxyAuthorization: "ProxyAuthorization",
+				"User-Agent":               "",
 			},
 			checkForUnexpectedHeaders: true,
 		},
@@ -652,6 +652,65 @@ func Test_writeHeader(t *testing.T) {
 			},
 			checkForUnexpectedHeaders: true,
 		},
+		{
+			name: "set empty User-Agent header if header is allowed but missing",
+			headers: map[string]string{
+				"X-CustomHeader": "CustomHeader",
+				"Accept":         "application/json",
+			},
+			authRequestHeaders: []string{
+				"X-CustomHeader",
+				"Accept",
+				"User-Agent",
+			},
+			expectedHeaders: map[string]string{
+				"X-CustomHeader":     "CustomHeader",
+				"Accept":             "application/json",
+				"X-Forwarded-Proto":  "http",
+				"X-Forwarded-Host":   "foo.bar",
+				"X-Forwarded-Uri":    "/path?q=1",
+				"X-Forwarded-Method": "GET",
+				"User-Agent":         "",
+			},
+			checkForUnexpectedHeaders: true,
+		},
+		{
+			name: "ignore User-Agent header if header is not allowed and missing",
+			headers: map[string]string{
+				"X-CustomHeader": "CustomHeader",
+				"Accept":         "application/json",
+			},
+			authRequestHeaders: []string{
+				"X-CustomHeader",
+				"Accept",
+			},
+			expectedHeaders: map[string]string{
+				"X-CustomHeader":     "CustomHeader",
+				"Accept":             "application/json",
+				"X-Forwarded-Proto":  "http",
+				"X-Forwarded-Host":   "foo.bar",
+				"X-Forwarded-Uri":    "/path?q=1",
+				"X-Forwarded-Method": "GET",
+			},
+			checkForUnexpectedHeaders: true,
+		},
+		{
+			name: "set empty User-Agent header if header is missing",
+			headers: map[string]string{
+				"X-CustomHeader": "CustomHeader",
+				"Accept":         "application/json",
+			},
+			expectedHeaders: map[string]string{
+				"X-CustomHeader":     "CustomHeader",
+				"Accept":             "application/json",
+				"X-Forwarded-Proto":  "http",
+				"X-Forwarded-Host":   "foo.bar",
+				"X-Forwarded-Uri":    "/path?q=1",
+				"X-Forwarded-Method": "GET",
+				"User-Agent":         "",
+			},
+			checkForUnexpectedHeaders: true,
+		},
 	}
 
 	for _, test := range testCases {
@@ -673,9 +732,14 @@ func Test_writeHeader(t *testing.T) {
 
 			expectedHeaders := test.expectedHeaders
 			for key, value := range expectedHeaders {
+				_, headerExists := actualHeaders[http.CanonicalHeaderKey(key)]
+
+				assert.True(t, headerExists, "Expected header %s not found", key)
 				assert.Equal(t, value, actualHeaders.Get(key))
+
 				actualHeaders.Del(key)
 			}
+
 			if test.checkForUnexpectedHeaders {
 				for key := range actualHeaders {
 					assert.Fail(t, "Unexpected header found", key)
@@ -868,6 +932,89 @@ func TestForwardAuthPreserveRequestMethod(t *testing.T) {
 			assert.Equal(t, http.StatusOK, res.StatusCode)
 			assert.True(t, reqReachesAuthServer)
 			assert.True(t, reqReachesNextServer)
+		})
+	}
+}
+
+func Test_ForwardAuthMaxResponseBodySize(t *testing.T) {
+	testCases := []struct {
+		name                string
+		maxResponseBodySize int64
+		status              int
+		body                string
+		expectedStatus      int
+		expectedBody        string
+	}{
+		{
+			name:                "auth failure, unlimited response body",
+			maxResponseBodySize: -1,
+			status:              http.StatusForbidden,
+			body:                "Forbidden",
+			expectedStatus:      http.StatusForbidden,
+			expectedBody:        "Forbidden",
+		},
+		{
+			name:                "auth failure, response body exceeds the limit",
+			maxResponseBodySize: 1,
+			status:              http.StatusForbidden,
+			body:                "Forbidden",
+			expectedStatus:      http.StatusUnauthorized,
+			expectedBody:        "",
+		},
+		{
+			name:                "auth success within limit",
+			maxResponseBodySize: 100,
+			status:              http.StatusOK,
+			body:                "ok",
+			expectedStatus:      http.StatusOK,
+			expectedBody:        "traefik\n",
+		},
+		{
+			name:                "auth success body exceeds limit",
+			maxResponseBodySize: 1,
+			status:              http.StatusOK,
+			body:                "large auth response",
+			expectedStatus:      http.StatusUnauthorized,
+			expectedBody:        "",
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(test.status)
+				fmt.Fprint(w, test.body)
+			}))
+			t.Cleanup(server.Close)
+
+			next := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintln(w, "traefik")
+			}))
+
+			maxResponseBodySize := test.maxResponseBodySize
+			auth := dynamic.ForwardAuth{
+				Address:             server.URL,
+				MaxResponseBodySize: &maxResponseBodySize,
+			}
+
+			middleware, err := NewForward(t.Context(), next, auth, "maxResponseBodySizeTest")
+			require.NoError(t, err)
+
+			ts := httptest.NewServer(middleware)
+			t.Cleanup(ts.Close)
+
+			req := testhelpers.MustNewRequest(http.MethodGet, ts.URL, nil)
+			res, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+
+			assert.Equal(t, test.expectedStatus, res.StatusCode)
+
+			body, err := io.ReadAll(res.Body)
+			require.NoError(t, err)
+			err = res.Body.Close()
+			require.NoError(t, err)
+
+			assert.Equal(t, test.expectedBody, string(body))
 		})
 	}
 }
