@@ -609,6 +609,10 @@ func (g *gauge) Set(value float64) {
 	g.collector.Set(value)
 }
 
+func (g *gauge) Reset() {
+	g.gv.Reset()
+}
+
 func (g *gauge) Describe(ch chan<- *stdprometheus.Desc) {
 	g.gv.Describe(ch)
 }

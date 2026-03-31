@@ -390,6 +390,13 @@ func (c *gaugeCollector) add(name string, delta float64, attributes otelLabelNam
 	}
 }
 
+func (c *gaugeCollector) reset(name string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.values[name] = make(map[string]gaugeValue)
+}
+
 func (c *gaugeCollector) set(name string, value float64, attributes otelLabelNamesValues) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -457,6 +464,10 @@ func (g *otelGauge) Add(delta float64) {
 
 func (g *otelGauge) Set(value float64) {
 	openTelemetryGaugeCollector.set(g.name, value, g.labelNamesValues)
+}
+
+func (g *otelGauge) Reset() {
+	openTelemetryGaugeCollector.reset(g.name)
 }
 
 func newOTLPHistogramFrom(meter metric.Meter, name, desc string, unit string) *otelHistogram {
