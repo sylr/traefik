@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
@@ -42,6 +43,10 @@ func newHTTP3Server(ctx context.Context, name string, config *static.EntryPoint,
 
 	if config.HTTP3.AdvertisedPort < 0 {
 		return nil, errors.New("advertised port must be greater than or equal to zero")
+	}
+
+	if config.HTTP3.InitialPacketSize != 0 && config.HTTP3.InitialPacketSize < 1200 {
+		return nil, errors.New("initialPacketSize must be greater than or equal to 1200")
 	}
 
 	// if we have predefined connections from socket activation
@@ -79,7 +84,13 @@ func newHTTP3Server(ctx context.Context, name string, config *static.EntryPoint,
 		Handler:   httpsServer.Server.(*http.Server).Handler,
 		TLSConfig: &tls.Config{GetConfigForClient: h3.getGetConfigForClient},
 		QUICConfig: &quic.Config{
-			Allow0RTT: false,
+			Allow0RTT:               config.HTTP3.Allow0RTT,
+			InitialPacketSize:       config.HTTP3.InitialPacketSize,
+			MaxIdleTimeout:          time.Duration(config.HTTP3.MaxIdleTimeout),
+			HandshakeIdleTimeout:    time.Duration(config.HTTP3.HandshakeIdleTimeout),
+			MaxIncomingStreams:      config.HTTP3.MaxIncomingStreams,
+			KeepAlivePeriod:         time.Duration(config.HTTP3.KeepAlivePeriod),
+			DisablePathMTUDiscovery: config.HTTP3.DisablePathMTUDiscovery,
 		},
 	}
 

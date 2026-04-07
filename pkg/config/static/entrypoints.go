@@ -118,8 +118,18 @@ func (c *HTTP2Config) SetDefaults() {
 
 // HTTP3Config is the HTTP3 configuration of an entry point.
 type HTTP3Config struct {
-	AdvertisedPort int `description:"UDP port to advertise, on which HTTP/3 is available." json:"advertisedPort,omitempty" toml:"advertisedPort,omitempty" yaml:"advertisedPort,omitempty" export:"true"`
+	AdvertisedPort          int             `description:"UDP port to advertise, on which HTTP/3 is available." json:"advertisedPort,omitempty" toml:"advertisedPort,omitempty" yaml:"advertisedPort,omitempty" export:"true"`
+	MaxIdleTimeout          ptypes.Duration `description:"Maximum duration that may pass without any incoming network activity. The actual value is the minimum of this value and the peer's." json:"maxIdleTimeout,omitempty" toml:"maxIdleTimeout,omitempty" yaml:"maxIdleTimeout,omitempty" export:"true"`
+	HandshakeIdleTimeout    ptypes.Duration `description:"Idle timeout before completion of the QUIC handshake." json:"handshakeIdleTimeout,omitempty" toml:"handshakeIdleTimeout,omitempty" yaml:"handshakeIdleTimeout,omitempty" export:"true"`
+	MaxIncomingStreams      int64           `description:"Maximum number of concurrent bidirectional streams that a peer is allowed to open." json:"maxIncomingStreams,omitempty" toml:"maxIncomingStreams,omitempty" yaml:"maxIncomingStreams,omitempty" export:"true"`
+	KeepAlivePeriod         ptypes.Duration `description:"Period between QUIC keep-alive packets. Zero disables keep-alive." json:"keepAlivePeriod,omitempty" toml:"keepAlivePeriod,omitempty" yaml:"keepAlivePeriod,omitempty" export:"true"`
+	InitialPacketSize       uint16          `description:"Initial size for QUIC packets. Values below 1200 are invalid." json:"initialPacketSize,omitempty" toml:"initialPacketSize,omitempty" yaml:"initialPacketSize,omitempty" export:"true"`
+	DisablePathMTUDiscovery bool            `description:"Disables Path MTU Discovery (RFC 8899)." json:"disablePathMTUDiscovery,omitempty" toml:"disablePathMTUDiscovery,omitempty" yaml:"disablePathMTUDiscovery,omitempty" export:"true"`
+	Allow0RTT               bool            `description:"Allows 0-RTT QUIC connection attempts. Enabling this may expose the server to replay attacks." json:"allow0RTT,omitempty" toml:"allow0RTT,omitempty" yaml:"allow0RTT,omitempty" export:"true"`
 }
+
+// SetDefaults sets the default values.
+func (c *HTTP3Config) SetDefaults() {}
 
 // Redirections is a set of redirection for an entry point.
 type Redirections struct {
