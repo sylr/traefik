@@ -11,6 +11,28 @@ import (
 
 const defaultMetricsPrefix = "traefik"
 
+// Resettable is an interface for metrics that support resetting all label values.
+type Resettable interface {
+	Reset()
+}
+
+// ResetGauge resets the gauge if it supports it.
+// For multi-gauges, it resets each underlying gauge that supports it.
+func ResetGauge(g metrics.Gauge) {
+	if r, ok := g.(Resettable); ok {
+		r.Reset()
+		return
+	}
+
+	if mg, ok := g.(multi.Gauge); ok {
+		for _, child := range mg {
+			if r, ok := child.(Resettable); ok {
+				r.Reset()
+			}
+		}
+	}
+}
+
 // Registry has to implemented by any system that wants to monitor and expose metrics.
 type Registry interface {
 	// IsEpEnabled shows whether metrics instrumentation is enabled on entry points.
