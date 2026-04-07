@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/traefik/v3/pkg/config/static"
+	"github.com/traefik/traefik/v3/pkg/server/quiclb"
 	tcprouter "github.com/traefik/traefik/v3/pkg/server/router/tcp"
 )
 
@@ -20,6 +22,11 @@ type http3server struct {
 	*http3.Server
 
 	http3conn net.PacketConn
+
+	// listener and transport are set when using a custom QUIC-LB CID generator
+	// (e.g., for AWS NLB). When nil, the default http3.Server.Serve(conn) path is used.
+	listener  *quic.EarlyListener
+	transport *quic.Transport
 
 	lock   sync.RWMutex
 	getter func(info *tls.ClientHelloInfo) (*tls.Config, error)
@@ -53,6 +60,12 @@ func newHTTP3Server(ctx context.Context, name string, config *static.EntryPoint,
 		}
 	}
 
+	// Check for AWS NLB QUIC-LB server ID.
+	gen, genErr := quiclb.NewGenerator(os.Getenv("AWS_LBC_QUIC_SERVER_ID"))
+	if genErr != nil {
+		return nil, fmt.Errorf("invalid AWS_LBC_QUIC_SERVER_ID: %w", genErr)
+	}
+
 	h3 := &http3server{
 		http3conn: conn,
 		getter: func(info *tls.ClientHelloInfo) (*tls.Config, error) {
@@ -70,6 +83,34 @@ func newHTTP3Server(ctx context.Context, name string, config *static.EntryPoint,
 		},
 	}
 
+	// When a QUIC-LB CID generator is available, create a quic.Transport
+	// with the custom generator and pre-create the listener. This is needed
+	// because http3.Server.Serve(conn) creates its own Transport internally
+	// without exposing the ConnectionIDGenerator field.
+	if gen != nil {
+		log.Ctx(ctx).Info().Msg("Using AWS NLB QUIC-LB connection ID generator")
+
+		tr := &quic.Transport{
+			Conn:                  conn,
+			ConnectionIDGenerator: gen,
+		}
+
+		// Mirror http3.Server.setupListenerForConn normalization:
+		// - ConfigureTLSConfig sets NextProtos: ["h3"] for ALPN negotiation
+		// - QUICConfig must be cloned to avoid mutating the shared config
+		// See: quic-go/http3/server.go setupListenerForConn()
+		tlsConf := http3.ConfigureTLSConfig(h3.Server.TLSConfig)
+		quicConf := h3.Server.QUICConfig.Clone()
+
+		ln, err := tr.ListenEarly(tlsConf, quicConf)
+		if err != nil {
+			return nil, fmt.Errorf("starting QUIC listener with custom CID generator: %w", err)
+		}
+
+		h3.listener = ln
+		h3.transport = tr
+	}
+
 	previousHandler := httpsServer.Server.(*http.Server).Handler
 
 	httpsServer.Server.(*http.Server).Handler = http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -84,6 +125,10 @@ func newHTTP3Server(ctx context.Context, name string, config *static.EntryPoint,
 }
 
 func (e *http3server) Start() error {
+	if e.listener != nil {
+		return e.ServeListener(e.listener)
+	}
+
 	return e.Serve(e.http3conn)
 }
 
@@ -96,7 +141,24 @@ func (e *http3server) Switch(rt *tcprouter.Router) {
 
 func (e *http3server) Shutdown(_ context.Context) error {
 	// TODO: use e.Server.CloseGracefully() when available.
-	return e.Server.Close()
+	err := e.Server.Close()
+
+	// Close the listener explicitly — ServeListener passes createdLocally=false
+	// so http3.Server.Close() does NOT close it (see quic-go http3/server.go Close()).
+	if e.listener != nil {
+		if closeErr := e.listener.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}
+
+	// Close the transport (tears down underlying UDP conn).
+	if e.transport != nil {
+		if closeErr := e.transport.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}
+
+	return err
 }
 
 func (e *http3server) getGetConfigForClient(info *tls.ClientHelloInfo) (*tls.Config, error) {
