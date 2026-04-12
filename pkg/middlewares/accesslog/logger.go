@@ -114,7 +114,9 @@ func NewHandler(ctx context.Context, config *otypes.AccessLog) (*Handler, error)
 		}
 
 		logger.Hooks.Add(otellogrus.NewHook("traefik", otellogrus.WithLoggerProvider(otelLoggerProvider)))
-		logger.Out = io.Discard
+		if !config.DualOutput {
+			logger.Out = io.Discard
+		}
 	}
 
 	// Transform header names to a canonical form, to be used as is without further transformations,
@@ -200,6 +202,15 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request, next http
 		Request: request{
 			headers: req.Header,
 		},
+	}
+
+	if metadata := observability.GetObservabilityMetadata(req.Context()); metadata != nil {
+		if metadata.Ingress != nil {
+			logDataTable.Core[KubernetesIngressNamespace] = metadata.Ingress.Namespace
+			logDataTable.Core[KubernetesIngressName] = metadata.Ingress.IngressName
+			logDataTable.Core[KubernetesServiceName] = metadata.Ingress.ServiceName
+			logDataTable.Core[KubernetesServicePort] = metadata.Ingress.ServicePort
+		}
 	}
 
 	if span := trace.SpanFromContext(req.Context()); span != nil {

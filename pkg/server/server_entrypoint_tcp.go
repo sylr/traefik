@@ -187,7 +187,7 @@ func NewTCPEntryPoint(ctx context.Context, name string, config *static.EntryPoin
 		return nil, fmt.Errorf("building listener: %w", err)
 	}
 
-	rt, err := tcprouter.NewRouter()
+	rt, err := tcprouter.NewRouter(nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating TCP router: %w", err)
 	}
@@ -641,6 +641,7 @@ func newHTTPServer(ctx context.Context, ln net.Listener, configuration *static.E
 		configuration.ForwardedHeaders.Insecure,
 		configuration.ForwardedHeaders.TrustedIPs,
 		configuration.ForwardedHeaders.Connection,
+		configuration.ForwardedHeaders.NotAppendXForwardedFor,
 		next)
 	if err != nil {
 		return nil, err

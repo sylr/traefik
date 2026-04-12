@@ -140,6 +140,7 @@ func (p *Provider) loadHTTPRoute(ctx context.Context, listener gatewayListener, 
 
 			var err error
 			routerName := makeRouterName(rule, routeKey)
+			// TODO loadMiddlewares errors could change the condition.
 			router.Middlewares, err = p.loadMiddlewares(conf, route.Namespace, routerName, routeRule.Filters, match.Path)
 			switch {
 			case err != nil:
@@ -164,7 +165,7 @@ func (p *Provider) loadHTTPRoute(ctx context.Context, listener gatewayListener, 
 
 			default:
 				var serviceCondition *metav1.Condition
-				router.Service, serviceCondition = p.loadWRRService(ctx, listener, conf, routerName, routeRule, route)
+				router.Service, serviceCondition = p.loadWRRService(ctx, listener, conf, routerName, routeRule, route, match.Path)
 				if serviceCondition != nil {
 					condition = *serviceCondition
 				}
@@ -179,7 +180,7 @@ func (p *Provider) loadHTTPRoute(ctx context.Context, listener gatewayListener, 
 	return conf, condition
 }
 
-func (p *Provider) loadWRRService(ctx context.Context, listener gatewayListener, conf *dynamic.Configuration, routeKey string, routeRule gatev1.HTTPRouteRule, route *gatev1.HTTPRoute) (string, *metav1.Condition) {
+func (p *Provider) loadWRRService(ctx context.Context, listener gatewayListener, conf *dynamic.Configuration, routeKey string, routeRule gatev1.HTTPRouteRule, route *gatev1.HTTPRoute, pathMatch *gatev1.HTTPPathMatch) (string, *metav1.Condition) {
 	name := routeKey + "-wrr"
 	if _, ok := conf.HTTP.Services[name]; ok {
 		return name, nil
@@ -188,7 +189,9 @@ func (p *Provider) loadWRRService(ctx context.Context, listener gatewayListener,
 	var wrr dynamic.WeightedRoundRobin
 	var condition *metav1.Condition
 	for _, backendRef := range routeRule.BackendRefs {
-		svcName, errCondition := p.loadService(ctx, listener, conf, route, backendRef)
+		// TODO in loadService we need to always return a non-nil serviceName even when there is an error which is not the
+		// usual defacto.
+		svcName, errCondition := p.loadService(ctx, listener, conf, route, backendRef, pathMatch)
 		weight := ptr.To(int(ptr.Deref(backendRef.Weight, 1)))
 		if errCondition != nil {
 			log.Ctx(ctx).Error().
@@ -215,7 +218,7 @@ func (p *Provider) loadWRRService(ctx context.Context, listener gatewayListener,
 
 // loadService returns a dynamic.Service config corresponding to the given gatev1.HTTPBackendRef.
 // Note that the returned dynamic.Service config can be nil (for cross-provider, internal services, and backendFunc).
-func (p *Provider) loadService(ctx context.Context, listener gatewayListener, conf *dynamic.Configuration, route *gatev1.HTTPRoute, backendRef gatev1.HTTPBackendRef) (string, *metav1.Condition) {
+func (p *Provider) loadService(ctx context.Context, listener gatewayListener, conf *dynamic.Configuration, route *gatev1.HTTPRoute, backendRef gatev1.HTTPBackendRef, pathMatch *gatev1.HTTPPathMatch) (string, *metav1.Condition) {
 	kind := ptr.Deref(backendRef.Kind, kindService)
 
 	group := groupCore
@@ -241,6 +244,19 @@ func (p *Provider) loadService(ctx context.Context, listener gatewayListener, co
 		}
 	}
 
+	middlewares, err := p.loadMiddlewares(conf, namespace, serviceName, backendRef.Filters, pathMatch)
+	if err != nil {
+		return serviceName, &metav1.Condition{
+			Type:               string(gatev1.RouteConditionResolvedRefs),
+			Status:             metav1.ConditionFalse,
+			ObservedGeneration: route.Generation,
+			LastTransitionTime: metav1.Now(),
+			Reason:             string(gatev1.RouteReasonInvalidKind),
+			Message:            fmt.Sprintf("Cannot load filters on HTTPBackendRef %s/%s/%s/%s: %s", group, kind, namespace, backendRef.Name, err),
+		}
+	}
+
+	// TODO may be we could incorporate this "ignored" case into the loadHTTPBackendRef.
 	if group != groupCore || kind != kindService {
 		name, service, err := p.loadHTTPBackendRef(namespace, backendRef)
 		if err != nil {
@@ -255,6 +271,7 @@ func (p *Provider) loadService(ctx context.Context, listener gatewayListener, co
 		}
 
 		if service != nil {
+			service.Middlewares = middlewares
 			conf.HTTP.Services[name] = service
 		}
 
@@ -286,7 +303,7 @@ func (p *Provider) loadService(ctx context.Context, listener gatewayListener, co
 		conf.HTTP.ServersTransports[serviceName] = st
 	}
 
-	conf.HTTP.Services[serviceName] = &dynamic.Service{LoadBalancer: lb}
+	conf.HTTP.Services[serviceName] = &dynamic.Service{LoadBalancer: lb, Middlewares: middlewares}
 
 	return serviceName, nil
 }
@@ -568,38 +585,55 @@ func (p *Provider) loadServersTransport(namespace string, policy *gatev1.Backend
 	}
 
 	for _, caCertRef := range policy.Spec.Validation.CACertificateRefs {
-		if (caCertRef.Group != "" && caCertRef.Group != groupCore) || caCertRef.Kind != "ConfigMap" {
+		if (caCertRef.Group != "" && caCertRef.Group != groupCore) || (caCertRef.Kind != "ConfigMap" && caCertRef.Kind != "Secret") {
 			return nil, metav1.Condition{
 				Type:               string(gatev1.BackendTLSPolicyConditionResolvedRefs),
 				Status:             metav1.ConditionFalse,
 				ObservedGeneration: policy.Generation,
 				LastTransitionTime: metav1.Now(),
 				Reason:             string(gatev1.BackendTLSPolicyReasonInvalidKind),
-				Message:            "Only ConfigMaps are supported",
+				Message:            "Only ConfigMaps and Secrets are supported",
 			}
 		}
 
-		configMap, err := p.client.GetConfigMap(namespace, string(caCertRef.Name))
-		if err != nil {
+		var caCRT string
+		switch caCertRef.Kind {
+		case "ConfigMap":
+			configmap, err := p.client.GetConfigMap(namespace, string(caCertRef.Name))
+			if err != nil {
+				return nil, metav1.Condition{
+					Type:               string(gatev1.BackendTLSPolicyConditionResolvedRefs),
+					Status:             metav1.ConditionFalse,
+					ObservedGeneration: policy.Generation,
+					LastTransitionTime: metav1.Now(),
+					Reason:             string(gatev1.BackendTLSPolicyReasonInvalidCACertificateRef),
+					Message:            fmt.Sprintf("getting configmap %s/%s: %s", namespace, string(caCertRef.Name), err),
+				}
+			}
+			caCRT = configmap.Data["ca.crt"]
+		case "Secret":
+			secret, err := p.client.GetSecret(namespace, string(caCertRef.Name))
+			if err != nil {
+				return nil, metav1.Condition{
+					Type:               string(gatev1.BackendTLSPolicyConditionResolvedRefs),
+					Status:             metav1.ConditionFalse,
+					ObservedGeneration: policy.Generation,
+					LastTransitionTime: metav1.Now(),
+					Reason:             string(gatev1.BackendTLSPolicyReasonInvalidCACertificateRef),
+					Message:            fmt.Sprintf("getting secret %s/%s: %s", namespace, string(caCertRef.Name), err),
+				}
+			}
+			caCRT = string(secret.Data["ca.crt"])
+		}
+
+		if caCRT == "" {
 			return nil, metav1.Condition{
 				Type:               string(gatev1.BackendTLSPolicyConditionResolvedRefs),
 				Status:             metav1.ConditionFalse,
 				ObservedGeneration: policy.Generation,
 				LastTransitionTime: metav1.Now(),
 				Reason:             string(gatev1.BackendTLSPolicyReasonInvalidCACertificateRef),
-				Message:            fmt.Sprintf("getting configmap %s/%s: %s", namespace, string(caCertRef.Name), err),
-			}
-		}
-
-		caCRT, ok := configMap.Data["ca.crt"]
-		if !ok {
-			return nil, metav1.Condition{
-				Type:               string(gatev1.BackendTLSPolicyConditionResolvedRefs),
-				Status:             metav1.ConditionFalse,
-				ObservedGeneration: policy.Generation,
-				LastTransitionTime: metav1.Now(),
-				Reason:             string(gatev1.BackendTLSPolicyReasonInvalidCACertificateRef),
-				Message:            fmt.Sprintf("configmap %s/%s does not have a ca.crt", namespace, string(caCertRef.Name)),
+				Message:            fmt.Sprintf("%s %s/%s does not have a ca.crt", caCertRef.Kind, namespace, string(caCertRef.Name)),
 			}
 		}
 

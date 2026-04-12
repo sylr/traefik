@@ -379,6 +379,9 @@
       serverName = "foobar"
       insecureSkipVerify = true
       rootCAs = ["foobar", "foobar"]
+      cipherSuites = ["foobar", "foobar"]
+      minVersion = "foobar"
+      maxVersion = "foobar"
       maxIdleConnsPerHost = 42
       disableHTTP2 = true
       peerCertURI = "foobar"
@@ -403,6 +406,9 @@
       serverName = "foobar"
       insecureSkipVerify = true
       rootCAs = ["foobar", "foobar"]
+      cipherSuites = ["foobar", "foobar"]
+      minVersion = "foobar"
+      maxVersion = "foobar"
       maxIdleConnsPerHost = 42
       disableHTTP2 = true
       peerCertURI = "foobar"

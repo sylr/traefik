@@ -9,7 +9,7 @@ env:
   CGO_ENABLED: 0
   VERSION: ${{ github.ref_name }}
   TRAEFIKER_EMAIL: "traefiker@traefik.io"
-  CODENAME: ramequin
+  CODENAME: langres
 
 jobs:
 
@@ -20,6 +20,7 @@ jobs:
   build:
     if: github.ref_type == 'tag' && github.repository == 'traefik/traefik'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     strategy:
       matrix:
@@ -82,6 +83,7 @@ jobs:
   release:
     if: github.ref_type == 'tag' && github.repository == 'traefik/traefik'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     needs:
       - build

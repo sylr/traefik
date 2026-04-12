@@ -36,8 +36,11 @@ func (p *Provider) loadIngressRouteConfiguration(ctx context.Context, client Cli
 	for _, ingressRoute := range client.GetIngressRoutes() {
 		logger := log.Ctx(ctx).With().Str("ingress", ingressRoute.Name).Str("namespace", ingressRoute.Namespace).Logger()
 
-		// TODO keep the name ingressClass?
-		if !shouldProcessIngress(p.IngressClass, ingressRoute.Annotations[annotationKubernetesIngressClass]) {
+		ingressClassName, usingDeprecatedAnnotation := getIngressClassName(ingressRoute.Spec.IngressClassName, ingressRoute.Annotations)
+		if usingDeprecatedAnnotation {
+			logger.Warn().Msgf("'%s' is a deprecated annotation, please use spec.ingressClassName instead.", annotationKubernetesIngressClass)
+		}
+		if !shouldProcessIngress(p.IngressClass, ingressClassName) {
 			continue
 		}
 
@@ -79,7 +82,7 @@ func (p *Provider) loadIngressRouteConfiguration(ctx context.Context, client Cli
 
 			serviceKey := makeServiceKey(route.Match, ingressName)
 
-			mds, err := p.makeMiddlewareKeys(ctx, ingressRoute.Namespace, route.Middlewares)
+			mds, err := makeMiddlewareKeys(ctx, ingressRoute.Namespace, route.Middlewares, p.AllowCrossNamespace)
 			if err != nil {
 				logger.Error().Err(err).Msg("Failed to create middleware keys")
 				continue
@@ -119,14 +122,22 @@ func (p *Provider) loadIngressRouteConfiguration(ctx context.Context, client Cli
 			}
 
 			r := &dynamic.Router{
-				Middlewares:   mds,
-				Priority:      route.Priority,
-				RuleSyntax:    route.Syntax,
-				EntryPoints:   ingressRoute.Spec.EntryPoints,
-				Rule:          route.Match,
-				Service:       serviceName,
-				Observability: route.Observability,
-				ParentRefs:    parentRouterNames,
+				Middlewares: mds,
+				Priority:    route.Priority,
+				RuleSyntax:  route.Syntax,
+				EntryPoints: ingressRoute.Spec.EntryPoints,
+				Rule:        route.Match,
+				Service:     serviceName,
+				ParentRefs:  parentRouterNames,
+			}
+
+			if route.Observability != nil {
+				r.Observability = &dynamic.RouterObservabilityConfig{
+					AccessLogs:     route.Observability.AccessLogs,
+					Metrics:        route.Observability.Metrics,
+					Tracing:        route.Observability.Tracing,
+					TraceVerbosity: route.Observability.TraceVerbosity,
+				}
 			}
 
 			if ingressRoute.Spec.TLS != nil {
@@ -169,13 +180,13 @@ func (p *Provider) loadIngressRouteConfiguration(ctx context.Context, client Cli
 	return conf
 }
 
-func (p *Provider) makeMiddlewareKeys(ctx context.Context, ingRouteNamespace string, middlewares []traefikv1alpha1.MiddlewareRef) ([]string, error) {
+func makeMiddlewareKeys(ctx context.Context, namespace string, middlewares []traefikv1alpha1.MiddlewareRef, allowCrossNamespace bool) ([]string, error) {
 	var mds []string
 
 	for _, mi := range middlewares {
 		name := mi.Name
 
-		if !p.AllowCrossNamespace && strings.HasSuffix(mi.Name, providerNamespaceSeparator+providerName) {
+		if !allowCrossNamespace && strings.HasSuffix(mi.Name, providerNamespaceSeparator+ProviderName) {
 			// Since we are not able to know if another namespace is in the name (namespace-name@kubernetescrd),
 			// if the provider namespace kubernetescrd is used,
 			// we don't allow this format to avoid cross namespace references.
@@ -193,10 +204,10 @@ func (p *Provider) makeMiddlewareKeys(ctx context.Context, ingRouteNamespace str
 			continue
 		}
 
-		ns := ingRouteNamespace
+		ns := namespace
 		if len(mi.Namespace) > 0 {
-			if !isNamespaceAllowed(p.AllowCrossNamespace, ingRouteNamespace, mi.Namespace) {
-				return nil, fmt.Errorf("middleware %s/%s is not in the IngressRoute namespace %s", mi.Namespace, mi.Name, ingRouteNamespace)
+			if !isNamespaceAllowed(allowCrossNamespace, namespace, mi.Namespace) {
+				return nil, fmt.Errorf("middleware %s/%s is not in the parent namespace %s", mi.Namespace, mi.Name, namespace)
 			}
 
 			ns = mi.Namespace
@@ -273,6 +284,8 @@ func (c configBuilder) buildTraefikService(ctx context.Context, tService *traefi
 		return c.buildMirroring(ctx, tService, id, conf)
 	case tService.Spec.HighestRandomWeight != nil:
 		return c.buildHRW(ctx, tService, id, conf)
+	case tService.Spec.Failover != nil:
+		return c.buildFailover(ctx, tService, id, conf)
 	default:
 
 		return errors.New("unspecified service type")
@@ -330,6 +343,7 @@ func (c configBuilder) buildServicesLB(ctx context.Context, namespace string, tS
 			Sticky:   sticky,
 		},
 	}
+
 	return nil
 }
 
@@ -375,7 +389,7 @@ func (c configBuilder) buildMirroring(ctx context.Context, tService *traefikv1al
 }
 
 // buildServersLB creates the configuration for the load-balancer of servers defined by svc.
-func (c configBuilder) buildServersLB(namespace string, svc traefikv1alpha1.LoadBalancerSpec) (*dynamic.Service, error) {
+func (c configBuilder) buildServersLB(ctx context.Context, namespace string, svc traefikv1alpha1.LoadBalancerSpec) (*dynamic.Service, error) {
 	lb := &dynamic.ServersLoadBalancer{}
 	lb.SetDefaults()
 
@@ -498,7 +512,16 @@ func (c configBuilder) buildServersLB(namespace string, svc traefikv1alpha1.Load
 		return nil, err
 	}
 
-	return &dynamic.Service{LoadBalancer: lb}, nil
+	service := &dynamic.Service{LoadBalancer: lb}
+	if len(svc.Middlewares) > 0 {
+		mds, err := makeMiddlewareKeys(ctx, namespace, svc.Middlewares, c.allowCrossNamespace)
+		if err != nil {
+			return nil, fmt.Errorf("could not create middleware keys: %w", err)
+		}
+		service.Middlewares = mds
+	}
+
+	return service, nil
 }
 
 func (c configBuilder) makeServersTransportKey(parentNamespace string, serversTransportName string) (string, error) {
@@ -506,7 +529,7 @@ func (c configBuilder) makeServersTransportKey(parentNamespace string, serversTr
 		return "", nil
 	}
 
-	if !c.allowCrossNamespace && strings.HasSuffix(serversTransportName, providerNamespaceSeparator+providerName) {
+	if !c.allowCrossNamespace && strings.HasSuffix(serversTransportName, providerNamespaceSeparator+ProviderName) {
 		// Since we are not able to know if another namespace is in the name (namespace-name@kubernetescrd),
 		// if the provider namespace kubernetescrd is used,
 		// we don't allow this format to avoid cross namespace references.
@@ -528,7 +551,7 @@ func (c configBuilder) loadServers(parentNamespace string, svc traefikv1alpha1.L
 	}
 
 	// If the service uses explicitly the provider suffix
-	sanitizedName := strings.TrimSuffix(svc.Name, providerNamespaceSeparator+providerName)
+	sanitizedName := strings.TrimSuffix(svc.Name, providerNamespaceSeparator+ProviderName)
 	service, exists, err := c.client.GetService(namespace, sanitizedName)
 	if err != nil {
 		return nil, err
@@ -684,7 +707,7 @@ func (c configBuilder) nameAndService(ctx context.Context, parentNamespace strin
 
 	switch service.Kind {
 	case "", "Service":
-		serversLB, err := c.buildServersLB(namespace, service)
+		serversLB, err := c.buildServersLB(ctx, namespace, service)
 		if err != nil {
 			return "", nil, err
 		}
@@ -733,6 +756,38 @@ func (c configBuilder) buildHRW(ctx context.Context, tService *traefikv1alpha1.T
 	return nil
 }
 
+func (c configBuilder) buildFailover(ctx context.Context, tService *traefikv1alpha1.TraefikService, id string, conf map[string]*dynamic.Service) error {
+	serviceName, service, err := c.nameAndService(ctx, tService.Namespace, tService.Spec.Failover.Service)
+	if err != nil {
+		return fmt.Errorf("getting service: %w", err)
+	}
+
+	fallbackName, fallback, err := c.nameAndService(ctx, tService.Namespace, tService.Spec.Failover.Fallback)
+	if err != nil {
+		return fmt.Errorf("getting fallback service: %w", err)
+	}
+
+	failover := &dynamic.Failover{
+		Service:  serviceName,
+		Fallback: fallbackName,
+		Errors: &dynamic.FailoverError{
+			Status:              tService.Spec.Failover.Errors.Status,
+			MaxRequestBodyBytes: tService.Spec.Failover.Errors.MaxRequestBodyBytes,
+		},
+	}
+
+	conf[id] = &dynamic.Service{Failover: failover}
+	if service != nil {
+		conf[serviceName] = service
+	}
+
+	if fallback != nil {
+		conf[fallbackName] = fallback
+	}
+
+	return nil
+}
+
 func splitSvcNameProvider(name string) (string, string) {
 	parts := strings.Split(name, providerNamespaceSeparator)
 
@@ -752,7 +807,7 @@ func fullServiceName(ctx context.Context, namespace string, service traefikv1alp
 	}
 
 	name, pName := splitSvcNameProvider(service.Name)
-	if pName == providerName {
+	if pName == ProviderName {
 		return provider.Normalize(fmt.Sprintf("%s-%s", namespace, name))
 	}
 

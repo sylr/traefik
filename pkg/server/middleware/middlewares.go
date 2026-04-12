@@ -18,12 +18,16 @@ import (
 	"github.com/traefik/traefik/v3/pkg/middlewares/compress"
 	"github.com/traefik/traefik/v3/pkg/middlewares/contenttype"
 	"github.com/traefik/traefik/v3/pkg/middlewares/customerrors"
+	"github.com/traefik/traefik/v3/pkg/middlewares/encodedcharacters"
 	"github.com/traefik/traefik/v3/pkg/middlewares/gatewayapi/headermodifier"
 	gapiredirect "github.com/traefik/traefik/v3/pkg/middlewares/gatewayapi/redirect"
 	"github.com/traefik/traefik/v3/pkg/middlewares/gatewayapi/urlrewrite"
 	"github.com/traefik/traefik/v3/pkg/middlewares/grpcweb"
 	"github.com/traefik/traefik/v3/pkg/middlewares/headers"
 	"github.com/traefik/traefik/v3/pkg/middlewares/inflightreq"
+	"github.com/traefik/traefik/v3/pkg/middlewares/ingressnginx/authtlspasscertificatetoupstream"
+	"github.com/traefik/traefik/v3/pkg/middlewares/ingressnginx/rewritetarget"
+	"github.com/traefik/traefik/v3/pkg/middlewares/ingressnginx/snippet"
 	"github.com/traefik/traefik/v3/pkg/middlewares/ipallowlist"
 	"github.com/traefik/traefik/v3/pkg/middlewares/ipwhitelist"
 	"github.com/traefik/traefik/v3/pkg/middlewares/observability"
@@ -55,8 +59,8 @@ func NewBuilder(configs map[string]*runtime.MiddlewareInfo, serviceBuilder servi
 	return &Builder{configs: configs, serviceBuilder: serviceBuilder, pluginBuilder: pluginBuilder}
 }
 
-// BuildChain creates a middleware chain.
-func (b *Builder) BuildChain(ctx context.Context, middlewares []string) *alice.Chain {
+// BuildMiddlewareChain creates a middleware chain.
+func (b *Builder) BuildMiddlewareChain(ctx context.Context, middlewares []string) *alice.Chain {
 	chain := alice.New()
 	for _, name := range middlewares {
 		middlewareName := provider.GetQualifiedName(ctx, name)
@@ -174,6 +178,16 @@ func (b *Builder) buildConstructor(ctx context.Context, middlewareName string) (
 		}
 	}
 
+	// EncodedCharacters
+	if config.EncodedCharacters != nil {
+		if middleware != nil {
+			return nil, badConf
+		}
+		middleware = func(next http.Handler) (http.Handler, error) {
+			return encodedcharacters.NewEncodedCharacters(ctx, next, *config.EncodedCharacters, middlewareName), nil
+		}
+	}
+
 	// CustomErrors
 	if config.Errors != nil {
 		if middleware != nil {
@@ -267,6 +281,16 @@ func (b *Builder) buildConstructor(ctx context.Context, middlewareName string) (
 		}
 	}
 
+	// AuthTLSPassCertificateToUpstream
+	if config.AuthTLSPassCertificateToUpstream != nil {
+		if middleware != nil {
+			return nil, badConf
+		}
+		middleware = func(next http.Handler) (http.Handler, error) {
+			return authtlspasscertificatetoupstream.NewAuthTLSPassCertificateToUpstream(ctx, next, *config.AuthTLSPassCertificateToUpstream, middlewareName)
+		}
+	}
+
 	// RateLimit
 	if config.RateLimit != nil {
 		if middleware != nil {
@@ -314,6 +338,16 @@ func (b *Builder) buildConstructor(ctx context.Context, middlewareName string) (
 		}
 		middleware = func(next http.Handler) (http.Handler, error) {
 			return replacepathregex.New(ctx, next, *config.ReplacePathRegex, middlewareName)
+		}
+	}
+
+	// RewriteTarget
+	if config.RewriteTarget != nil {
+		if middleware != nil {
+			return nil, badConf
+		}
+		middleware = func(next http.Handler) (http.Handler, error) {
+			return rewritetarget.New(ctx, next, *config.RewriteTarget, middlewareName)
 		}
 	}
 
@@ -403,6 +437,16 @@ func (b *Builder) buildConstructor(ctx context.Context, middlewareName string) (
 		}
 		middleware = func(next http.Handler) (http.Handler, error) {
 			return urlrewrite.NewURLRewrite(ctx, next, *config.URLRewrite, middlewareName), nil
+		}
+	}
+
+	// ingress-nginx middlewares.
+	if config.Snippet != nil {
+		if middleware != nil {
+			return nil, badConf
+		}
+		middleware = func(next http.Handler) (http.Handler, error) {
+			return snippet.New(ctx, next, config.Snippet, middlewareName)
 		}
 	}
 
