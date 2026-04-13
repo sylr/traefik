@@ -22,6 +22,7 @@ WORKDIR /go/src/github.com/traefik/traefik
 
 COPY go.mod .
 COPY go.sum .
+COPY pkg/config/dynamic/ext/go.mod pkg/config/dynamic/ext/go.mod
 
 RUN go mod download
 
