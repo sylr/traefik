@@ -266,16 +266,20 @@ func (p *Provider) loadConfigurationFromCRD(ctx context.Context, client Client) 
 			continue
 		}
 
-		errorPage, errorPageService, err := p.createErrorPageMiddleware(client, middleware.Namespace, middleware.Spec.Errors)
+		errorPageName, errorPage, errorPageService, err := p.createErrorPageMiddleware(ctxMid, client, middleware.Namespace, middleware.Spec.Errors)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while reading error page middleware")
 			continue
 		}
 
-		if errorPage != nil && errorPageService != nil {
-			serviceName := id + "-errorpage-service"
-			errorPage.Service = serviceName
-			conf.HTTP.Services[serviceName] = errorPageService
+		if errorPage != nil {
+			if errorPageService != nil {
+				serviceName := id + "-errorpage-service"
+				errorPage.Service = serviceName
+				conf.HTTP.Services[serviceName] = errorPageService
+			} else {
+				errorPage.Service = errorPageName
+			}
 		}
 
 		plugin, err := createPluginMiddleware(client, middleware.Namespace, middleware.Spec.Plugin)
@@ -302,13 +306,19 @@ func (p *Provider) loadConfigurationFromCRD(ctx context.Context, client Client) 
 			continue
 		}
 
+		chain, err := createChainMiddleware(ctxMid, middleware.Namespace, middleware.Spec.Chain, p.AllowCrossNamespace)
+		if err != nil {
+			logger.Error().Err(err).Msg("Error while reading chain middleware")
+			continue
+		}
+
 		conf.HTTP.Middlewares[id] = &dynamic.Middleware{
 			AddPrefix:         middleware.Spec.AddPrefix,
 			StripPrefix:       middleware.Spec.StripPrefix,
 			StripPrefixRegex:  middleware.Spec.StripPrefixRegex,
 			ReplacePath:       middleware.Spec.ReplacePath,
 			ReplacePathRegex:  middleware.Spec.ReplacePathRegex,
-			Chain:             createChainMiddleware(ctxMid, middleware.Namespace, middleware.Spec.Chain),
+			Chain:             chain,
 			IPWhiteList:       middleware.Spec.IPWhiteList,
 			IPAllowList:       middleware.Spec.IPAllowList,
 			Headers:           middleware.Spec.Headers,
@@ -598,15 +608,9 @@ func (p *Provider) loadConfigurationFromCRD(ctx context.Context, client Client) 
 	return conf
 }
 
-func (p *Provider) createErrorPageMiddleware(client Client, namespace string, errorPage *traefikv1alpha1.ErrorPage) (*dynamic.ErrorPage, *dynamic.Service, error) {
+func (p *Provider) createErrorPageMiddleware(ctx context.Context, client Client, namespace string, errorPage *traefikv1alpha1.ErrorPage) (string, *dynamic.ErrorPage, *dynamic.Service, error) {
 	if errorPage == nil {
-		return nil, nil, nil
-	}
-
-	errorPageMiddleware := &dynamic.ErrorPage{
-		Status:         errorPage.Status,
-		StatusRewrites: errorPage.StatusRewrites,
-		Query:          errorPage.Query,
+		return "", nil, nil, nil
 	}
 
 	cb := configBuilder{
@@ -616,12 +620,16 @@ func (p *Provider) createErrorPageMiddleware(client Client, namespace string, er
 		allowEmptyServices:        p.AllowEmptyServices,
 	}
 
-	balancerServerHTTP, err := cb.buildServersLB(namespace, errorPage.Service.LoadBalancerSpec)
+	balancerName, balancerServerHTTP, err := cb.nameAndService(ctx, namespace, errorPage.Service.LoadBalancerSpec)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
 
-	return errorPageMiddleware, balancerServerHTTP, nil
+	return balancerName, &dynamic.ErrorPage{
+		Status:         errorPage.Status,
+		StatusRewrites: errorPage.StatusRewrites,
+		Query:          errorPage.Query,
+	}, balancerServerHTTP, nil
 }
 
 // getServicePort always returns a valid port, an error otherwise.
@@ -1194,13 +1202,20 @@ func loadAuthCredentials(secret *corev1.Secret) ([]string, error) {
 	return credentials, nil
 }
 
-func createChainMiddleware(ctx context.Context, namespace string, chain *traefikv1alpha1.Chain) *dynamic.Chain {
+func createChainMiddleware(ctx context.Context, parentNamespace string, chain *traefikv1alpha1.Chain, allowCrossNamespace bool) (*dynamic.Chain, error) {
 	if chain == nil {
-		return nil
+		return nil, nil
 	}
 
 	var mds []string
 	for _, mi := range chain.Middlewares {
+		if !allowCrossNamespace && strings.HasSuffix(mi.Name, providerNamespaceSeparator+providerName) {
+			// Since we are not able to know if another namespace is in the name (namespace-name@kubernetescrd),
+			// if the provider namespace kubernetescrd is used,
+			// we don't allow this format to avoid cross-namespace references.
+			return nil, fmt.Errorf("invalid reference to middleware %s: when allowCrossNamespace is disabled @kubernetescrd provider references are disallowed", mi.Name)
+		}
+
 		if strings.Contains(mi.Name, providerNamespaceSeparator) {
 			if len(mi.Namespace) > 0 {
 				log.Ctx(ctx).Warn().Msgf("namespace %q is ignored in cross-provider context", mi.Namespace)
@@ -1209,13 +1224,19 @@ func createChainMiddleware(ctx context.Context, namespace string, chain *traefik
 			continue
 		}
 
-		ns := mi.Namespace
-		if len(ns) == 0 {
-			ns = namespace
+		ns := parentNamespace
+		if len(mi.Namespace) > 0 {
+			if !isNamespaceAllowed(allowCrossNamespace, parentNamespace, mi.Namespace) {
+				return nil, fmt.Errorf("middleware %s/%s is not in the chain namespace %s", mi.Namespace, mi.Name, parentNamespace)
+			}
+
+			ns = mi.Namespace
 		}
+
 		mds = append(mds, makeID(ns, mi.Name))
 	}
-	return &dynamic.Chain{Middlewares: mds}
+
+	return &dynamic.Chain{Middlewares: mds}, nil
 }
 
 func buildTLSOptions(ctx context.Context, client Client) map[string]tls.Options {
