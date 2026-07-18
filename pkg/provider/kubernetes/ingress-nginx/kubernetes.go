@@ -546,7 +546,7 @@ func (p *Provider) buildService(namespace string, backend netv1.IngressBackend, 
 				HTTPOnly: true, // Default value in Nginx.
 				SameSite: strings.ToLower(ptr.Deref(cfg.SessionCookieSameSite, "")),
 				MaxAge:   ptr.Deref(cfg.SessionCookieMaxAge, 0),
-				Path:     ptr.To(ptr.Deref(cfg.SessionCookiePath, "/")),
+				Path:     new(ptr.Deref(cfg.SessionCookiePath, "/")),
 				Domain:   ptr.Deref(cfg.SessionCookieDomain, ""),
 			},
 		}
@@ -632,8 +632,8 @@ func (p *Provider) getBackendAddresses(namespace string, backend netv1.IngressBa
 	for _, endpointSlice := range endpointSlices {
 		var port int32
 		for _, p := range endpointSlice.Ports {
-			if servicePort.Name == *p.Name {
-				port = *p.Port
+			if p.Name != nil && servicePort.Name == *p.Name {
+				port = ptr.Deref(p.Port, 0)
 				break
 			}
 		}
@@ -929,7 +929,7 @@ func applyCORSConfiguration(routerName string, ingressConfig ingressConfig, rt *
 			AccessControlAllowHeaders:     ptr.Deref(ingressConfig.CORSAllowHeaders, []string{"DNT", "Keep-Alive", "User-Agent", "X-Requested-With", "If-Modified-Since", "Cache-Control", "Content-Type", "Range", "Authorization"}),
 			AccessControlAllowMethods:     ptr.Deref(ingressConfig.CORSAllowMethods, []string{"GET", "PUT", "POST", "DELETE", "PATCH", "OPTIONS"}),
 			AccessControlAllowOriginList:  ptr.Deref(ingressConfig.CORSAllowOrigin, []string{"*"}),
-			AccessControlMaxAge:           int64(ptr.Deref(ingressConfig.CORSMaxAge, 1728000)),
+			AccessControlMaxAge:           new(int64(ptr.Deref(ingressConfig.CORSMaxAge, 1728000))),
 		},
 	}
 
