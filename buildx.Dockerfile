@@ -1,6 +1,6 @@
 # -- WEBUI ---------------------------------------------------------------------
 
-FROM --platform=$BUILDPLATFORM node:24.7-alpine3.22 AS webui
+FROM --platform=$BUILDPLATFORM node:24.22-alpine3.24 AS webui
 
 RUN npm upgrade --global yarn
 
